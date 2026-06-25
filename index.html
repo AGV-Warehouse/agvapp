@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#121826" />
+    <title>AGV Fleet Control</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Fleet navigation">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">A</div>
+          <div>
+            <p class="eyebrow">Warehouse ROS Fleet</p>
+            <h1>AGV Control</h1>
+          </div>
+        </div>
+
+        <section class="summary-grid" aria-label="Fleet summary">
+          <div>
+            <span id="onlineCount">0</span>
+            <p>Online</p>
+          </div>
+          <div>
+            <span id="movingCount">0</span>
+            <p>Moving</p>
+          </div>
+          <div>
+            <span id="alertsCount">0</span>
+            <p>Alerts</p>
+          </div>
+        </section>
+
+        <div class="sidebar-actions">
+          <button id="estopButton" class="danger-button" type="button" title="Emergency stop all robots">
+            <span aria-hidden="true">&#9632;</span>
+            <span>E-Stop All</span>
+          </button>
+          <button id="resumeButton" class="secondary-button" type="button" title="Resume mock fleet">
+            <span aria-hidden="true">&#9654;</span>
+            <span>Resume Fleet</span>
+          </button>
+        </div>
+
+        <section class="robot-list-wrap">
+          <div class="section-title">
+            <h2>Robots</h2>
+            <span id="fleetMode">Mock ROS</span>
+          </div>
+          <div id="robotList" class="robot-list" aria-label="Robot list"></div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">2.4GHz WiFi control room</p>
+            <h2 id="selectedRobotName">Robot</h2>
+          </div>
+          <div class="connection-pill" id="connectionPill">
+            <span></span>
+            ROS bridge standby
+          </div>
+        </header>
+
+        <section class="map-section" aria-label="Warehouse map">
+          <div class="map-toolbar">
+            <div>
+              <h3>Single Room Map</h3>
+              <p>Temporary layout until the real warehouse map is provided.</p>
+            </div>
+            <div class="map-legend" aria-label="Map legend">
+              <span><i class="legend-robot"></i>Robot</span>
+              <span><i class="legend-point"></i>Point</span>
+              <span><i class="legend-zone"></i>Zone</span>
+            </div>
+          </div>
+
+          <div class="warehouse-map" id="warehouseMap">
+            <div class="zone receiving">Receiving</div>
+            <div class="zone storage">Storage</div>
+            <div class="zone packing">Packing</div>
+            <div class="dock dock-a">Dock A</div>
+            <div class="dock dock-b">Dock B</div>
+            <div class="charging">Charging</div>
+            <div id="mapPoints"></div>
+            <div id="robotMarkers"></div>
+          </div>
+        </section>
+
+        <section class="control-grid">
+          <section class="panel status-panel">
+            <div class="section-title">
+              <h3>Status</h3>
+              <span id="robotState">Idle</span>
+            </div>
+            <dl class="status-list">
+              <div>
+                <dt>Battery</dt>
+                <dd id="batteryValue">--</dd>
+              </div>
+              <div>
+                <dt>Location</dt>
+                <dd id="locationValue">--</dd>
+              </div>
+              <div>
+                <dt>Task</dt>
+                <dd id="taskValue">--</dd>
+              </div>
+              <div>
+                <dt>Velocity</dt>
+                <dd id="velocityValue">--</dd>
+              </div>
+              <div>
+                <dt>ROS Topic</dt>
+                <dd>/agv/cmd_vel</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="panel">
+            <div class="section-title">
+              <h3>Point To Point</h3>
+              <span>Navigate</span>
+            </div>
+            <form id="navigateForm" class="navigate-form">
+              <label>
+                From
+                <select id="fromPoint"></select>
+              </label>
+              <label>
+                To
+                <select id="toPoint"></select>
+              </label>
+              <button class="primary-button" type="submit">
+                <span aria-hidden="true">&rarr;</span>
+                <span>Send Robot</span>
+              </button>
+            </form>
+          </section>
+
+          <section class="panel manual-panel">
+            <div class="section-title">
+              <h3>Manual</h3>
+              <span>/cmd_vel</span>
+            </div>
+            <div class="manual-pad" aria-label="Manual robot commands">
+              <button data-command="forward" title="Forward">&uarr;</button>
+              <button data-command="left" title="Turn left">&larr;</button>
+              <button data-command="stop" class="stop-command" title="Stop">&#9632;</button>
+              <button data-command="right" title="Turn right">&rarr;</button>
+              <button data-command="backward" title="Reverse">&darr;</button>
+            </div>
+          </section>
+
+          <section class="panel log-panel">
+            <div class="section-title">
+              <h3>Comms</h3>
+              <span>Mock bridge</span>
+            </div>
+            <ol id="commsLog" class="comms-log" aria-label="Communication log"></ol>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

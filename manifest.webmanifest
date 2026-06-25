@@ -1,0 +1,16 @@
+{
+  "name": "AGV Fleet Control",
+  "short_name": "AGV Control",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#eef2f5",
+  "theme_color": "#121826",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
