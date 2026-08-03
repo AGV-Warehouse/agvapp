@@ -69,17 +69,20 @@
         <section class="map-section" aria-label="Warehouse map">
           <div class="map-toolbar">
             <div>
-              <h3>Single Room Map</h3>
-              <p>Temporary layout until the real warehouse map is provided.</p>
+              <h3>Warehouse Map</h3>
+              <p id="mapSourceLabel">Mock layout</p>
             </div>
             <div class="map-legend" aria-label="Map legend">
               <span><i class="legend-robot"></i>Robot</span>
               <span><i class="legend-point"></i>Point</span>
               <span><i class="legend-zone"></i>Zone</span>
+              <span><i class="legend-sim"></i>Sim robot</span>
+              <button id="mapTapMode" class="tap-mode-button" type="button">Tap: Select</button>
             </div>
           </div>
 
           <div class="warehouse-map" id="warehouseMap">
+            <canvas id="mapCanvas" aria-hidden="true"></canvas>
             <div class="zone receiving">Receiving</div>
             <div class="zone storage">Storage</div>
             <div class="zone packing">Packing</div>
@@ -116,7 +119,7 @@
               </div>
               <div>
                 <dt>ROS Topic</dt>
-                <dd>/agv/cmd_vel</dd>
+                <dd id="rosTopicValue">--</dd>
               </div>
             </dl>
           </section>
@@ -167,6 +170,10 @@
       </main>
     </div>
 
+    <script src="vendor/roslib.min.js"></script>
+    <script src="config.js"></script>
+    <script src="map.js"></script>
+    <script src="ros.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

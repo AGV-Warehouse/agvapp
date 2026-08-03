@@ -643,3 +643,104 @@ select {
     min-height: 360px;
   }
 }
+
+/* --- Live ROS integration --- */
+
+#mapCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.warehouse-map.has-real-map .zone,
+.warehouse-map.has-real-map .dock,
+.warehouse-map.has-real-map .charging,
+.warehouse-map.has-real-map .map-point {
+  display: none;
+}
+
+#mapPoints,
+#robotMarkers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#mapPoints > *,
+#robotMarkers > * {
+  pointer-events: auto;
+}
+
+.robot-marker.mock {
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.robot-marker.real {
+  transition: transform 200ms ease;
+}
+
+.robot-marker .heading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 12px solid var(--amber);
+  transform: translate(-50%, -50%) rotate(var(--heading, 0rad)) translateX(26px);
+  pointer-events: none;
+}
+
+.legend-sim {
+  border: 1px dashed var(--blue);
+  background: transparent;
+}
+
+.tap-mode-button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 5px 10px;
+}
+
+.connection-pill.stale {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.connection-pill.disconnected {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.status-offline {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.status-stale {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.sim-tag {
+  margin-left: 6px;
+  border: 1px dashed var(--muted);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  vertical-align: middle;
+}
+
+.manual-pad button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}

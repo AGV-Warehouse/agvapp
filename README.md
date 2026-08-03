@@ -1,17 +1,32 @@
 # AGV Fleet Control Prototype
 
-This is a dependency-free web/PWA prototype for controlling a 10-robot warehouse AGV fleet.
+This is a dependency-free web/PWA app for controlling a warehouse AGV fleet.
+AGV-01 is a **real linorobot2 robot** driven over rosbridge; AGV-02..10 are
+mock stand-ins until more robots exist.
 
 ## What is included
 
-- Mock ROS bridge behavior
-- 10 robot stand-ins from day one
+- Live ROS 2 control of AGV-01 via rosbridge (vendored roslib.js, no build step)
+- Real map view: `/map` occupancy grid + live AMCL pose with heading
+- Tap-to-navigate (Nav2 goals in world coordinates) and tap-to-set-pose
+- Press-and-hold manual `/cmd_vel` jog with firmware-watchdog-backed safety
+- 9 mock robot stand-ins alongside the real robot
 - Robot overview and status cards
-- Single-room temporary warehouse map
-- Point-to-point navigation commands
-- Manual `/cmd_vel` controls
-- Fleet emergency stop and resume
+- Fleet emergency stop (cancels nav goals + zero velocity) and resume
 - Installable PWA metadata
+
+## Connecting to the robot
+
+Start the robot stack (see the linorobot2 repo), then open the app with the
+robot's rosbridge URL:
+
+```text
+http://<app-host>:5173?ros=ws://<robot-ip>:9090
+```
+
+The URL is remembered per device via `localStorage`; the default lives in
+`config.js`. Serve the app over plain http on the LAN — https would block
+`ws://` connections (see `docs/ros-bridge-contract.md`).
 
 ## Run locally
 
@@ -29,12 +44,8 @@ Then open:
 http://localhost:5173
 ```
 
-## Future ROS integration
+## ROS integration details
 
-The current app logs mock calls such as:
-
-- `POST /ros/AGV-01/cmd_vel`
-- `POST /ros/AGV-01/navigate`
-- `POST /ros/fleet/e_stop`
-
-When the real robot API is ready, replace the mock command functions in `app.js` with calls to a backend ROS bridge. The frontend can stay mostly the same.
+See `docs/ros-bridge-contract.md` for the full topic/service contract, the
+`/goal_pose` goal mechanism, safety semantics, and how to add more real
+robots. `tools/fake_robot.py` fakes the whole robot for hardware-free testing.
