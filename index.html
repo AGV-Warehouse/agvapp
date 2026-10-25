@@ -14,7 +14,7 @@
         <div class="brand-block">
           <div class="brand-mark" aria-hidden="true">A</div>
           <div>
-            <p class="eyebrow">Warehouse ROS Fleet</p>
+            <p class="eyebrow">Warehouse Fleet</p>
             <h1>AGV Control</h1>
           </div>
         </div>
@@ -35,11 +35,11 @@
         </section>
 
         <div class="sidebar-actions">
-          <button id="estopButton" class="danger-button" type="button" title="Emergency stop all robots">
+          <button id="estopButton" class="danger-button" type="button" title="Request an operational pause; await vehicle confirmation">
             <span aria-hidden="true">&#9632;</span>
-            <span>E-Stop All</span>
+            <span>Pause Fleet</span>
           </button>
-          <button id="resumeButton" class="secondary-button" type="button" title="Resume mock fleet">
+          <button id="resumeButton" class="secondary-button" type="button" title="Request fleet resume">
             <span aria-hidden="true">&#9654;</span>
             <span>Resume Fleet</span>
           </button>
@@ -48,7 +48,7 @@
         <section class="robot-list-wrap">
           <div class="section-title">
             <h2>Robots</h2>
-            <span id="fleetMode">Mock ROS</span>
+            <span id="fleetMode">Unavailable</span>
           </div>
           <div id="robotList" class="robot-list" aria-label="Robot list"></div>
         </section>
@@ -57,20 +57,21 @@
       <main class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">2.4GHz WiFi control room</p>
+            <p class="eyebrow">openTCS control room</p>
             <h2 id="selectedRobotName">Robot</h2>
           </div>
           <div class="connection-pill" id="connectionPill">
             <span></span>
-            ROS bridge standby
+            Connecting to Fleet Server
           </div>
         </header>
 
         <section class="map-section" aria-label="Warehouse map">
           <div class="map-toolbar">
             <div>
-              <h3>Single Room Map</h3>
-              <p>Temporary layout until the real warehouse map is provided.</p>
+              <h3>Warehouse Layout</h3>
+              <p>Positions come from reported vehicle state. Commission the layout before operation.</p>
+              <label>Control key <input id="controlKey" type="password" autocomplete="off" /></label>
             </div>
             <div class="map-legend" aria-label="Map legend">
               <span><i class="legend-robot"></i>Robot</span>
@@ -115,8 +116,8 @@
                 <dd id="velocityValue">--</dd>
               </div>
               <div>
-                <dt>ROS Topic</dt>
-                <dd>/agv/cmd_vel</dd>
+                <dt>Control</dt>
+                <dd>openTCS / VDA 5050</dd>
               </div>
             </dl>
           </section>
@@ -140,12 +141,13 @@
                 <span>Send Robot</span>
               </button>
             </form>
+            <button id="cancelOrder" class="secondary-button" type="button">Withdraw current order</button>
           </section>
 
           <section class="panel manual-panel">
             <div class="section-title">
               <h3>Manual</h3>
-              <span>/cmd_vel</span>
+              <span>Disabled in fleet mode</span>
             </div>
             <div class="manual-pad" aria-label="Manual robot commands">
               <button data-command="forward" title="Forward">&uarr;</button>
@@ -159,7 +161,7 @@
           <section class="panel log-panel">
             <div class="section-title">
               <h3>Comms</h3>
-              <span>Mock bridge</span>
+              <span>Fleet API</span>
             </div>
             <ol id="commsLog" class="comms-log" aria-label="Communication log"></ol>
           </section>
@@ -167,6 +169,7 @@
       </main>
     </div>
 
+    <script src="fleet-api.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
