@@ -1,58 +1,55 @@
-# ROS Bridge Contract
+# Fleet HTTP/SSE Contract
 
-The first version of the app uses in-browser stand-ins. The production version should add a backend service between the iPad web app and the ROS robots.
+The page is served by fleet_gateway from the same origin as /api.
+openTCS is the order and traffic authority. The browser never rewrites a
+vehicle's physical position or simulates task completion.
 
-## Recommended shape
+## Read endpoints
 
-```text
-iPad PWA -> HTTP/WebSocket backend -> ROS bridge -> AGV robots
-```
+- GET /api/health: service and upstream availability
+- GET /api/robots: robots, orders, revision, upstreamOnline, freshnessSource
+- GET /api/layout: configured station IDs and display bounds in metres
+- GET /api/orders/{id}: actual openTCS transport order state
+- GET /api/events: named SSE event "fleet", containing a complete snapshot
 
-This keeps the tablet app simple and avoids putting ROS credentials, topic wiring, retries, and safety logic directly in the browser.
+Robot battery and velocity can be null. Missing/unverified data stays unknown.
+online is based on openTCS's driver-reported vehicle state, not a direct robot
+heartbeat. Gateway refresh age does not prove the robot is healthy.
 
-## Initial API
+## Control endpoints
 
-```http
-GET /api/robots
-GET /api/robots/:id/status
-POST /api/robots/:id/cmd_vel
-POST /api/robots/:id/navigate
-POST /api/fleet/e_stop
-POST /api/fleet/resume
-WS /api/fleet/telemetry
-```
+All mutations require X-Fleet-Key matching FLEET_API_KEY on the server.
+The key is kept in page memory. Cross-origin mutation is rejected.
 
-## Command payloads
+POST /api/orders:
+{"requestId":"unique-user-intent","to":"B","robotId":"AGV-01"}
 
-```json
-{
-  "command": "forward",
-  "linear": 0.4,
-  "angular": 0
-}
-```
+robotId is optional for fleet allocation. to is a configured station ID.
+Unknown fields (including a browser-selected physical starting position) are
+rejected. Retry uncertain responses with the SAME requestId. A new content
+payload with a reused ID is rejected. An accepted order is not an arrival.
 
-```json
-{
-  "from": "A",
-  "to": "D",
-  "priority": "normal"
-}
-```
+- POST /api/orders/{id}/cancel: normal withdrawal, not an immediate emergency stop
+- POST /api/robots/{id}/pause
+- POST /api/robots/{id}/resume
+- POST /api/fleet/pause
+- POST /api/fleet/resume
 
-## ROS mapping draft
+Pause/resume replies mean requests were submitted. Fleet replies include
+per-vehicle accepted/error results; they are not atomic fleet-wide control.
+Wait for reported vehicle state to confirm pause or completion.
 
-| App command | ROS concept |
-| --- | --- |
-| Manual forward/back/turn | `/cmd_vel` |
-| Stop robot | zero velocity on `/cmd_vel` |
-| Point-to-point command | navigation action or fleet task topic |
-| Robot telemetry | odometry, battery, diagnostics, current task |
-| Emergency stop | safety topic/service controlled by backend |
+Web cmd_vel and hardware e-stop endpoints are NOT implemented in this release.
+The manual pad is disabled. Operational pause is not a hardware emergency stop.
 
-## Safety notes for v1 integration
+## Cache and reconnect
 
-- Backend should reject movement commands when a robot is disconnected, faulted, or emergency-stopped.
-- Commands should include timeouts so stale tablet input cannot keep a robot moving.
-- The app should display stale telemetry clearly if updates stop.
-- Emergency stop should be fleet-wide and robot-specific once the real safety model is known.
+API and SSE responses use no-store. The service worker caches only static
+assets. After a stream error or more than 10 seconds without a fleet update,
+controls relying on fresh state are disabled. The stream reconnects and receives
+a fresh complete snapshot. No cached position becomes control authority.
+
+## Run
+
+See ../fleet_integration/README.md in the workspace root. Open the page through
+the Gateway's HTTP server, not by opening index.html as a file.

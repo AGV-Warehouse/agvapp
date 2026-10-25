@@ -1,40 +1,14 @@
-# AGV Fleet Control Prototype
+# AGV Fleet Control
 
-This is a dependency-free web/PWA prototype for controlling a 10-robot warehouse AGV fleet.
+Real same-origin HTTP/SSE frontend for the workspace Fleet Gateway and openTCS 7.5.
+Mock vehicles, simulated arrivals, and synthetic battery updates have been removed.
+Manual driving is disabled; Pause Fleet requests an operational pause.
 
-## What is included
+Run the workspace Gateway using fleet_integration/README.md, then open its HTTP URL.
+Opening index.html directly is no longer the runtime entry point.
 
-- Mock ROS bridge behavior
-- 10 robot stand-ins from day one
-- Robot overview and status cards
-- Single-room temporary warehouse map
-- Point-to-point navigation commands
-- Manual `/cmd_vel` controls
-- Fleet emergency stop and resume
-- Installable PWA metadata
+Enter the server's control key in the page to send commands. Unknown/stale vehicle
+state is shown explicitly. HTTP acceptance does not imply arrival or confirmed stop.
 
-## Run locally
-
-Open `index.html` directly in a browser for the quickest demo.
-
-For PWA/service worker behavior, serve the folder over HTTP:
-
-```powershell
-py -m http.server 5173
-```
-
-Then open:
-
-```text
-http://localhost:5173
-```
-
-## Future ROS integration
-
-The current app logs mock calls such as:
-
-- `POST /ros/AGV-01/cmd_vel`
-- `POST /ros/AGV-01/navigate`
-- `POST /ros/fleet/e_stop`
-
-When the real robot API is ready, replace the mock command functions in `app.js` with calls to a backend ROS bridge. The frontend can stay mostly the same.
+API contract: docs/ros-bridge-contract.md.
+Tests: node --test tests/fleet-api.test.cjs

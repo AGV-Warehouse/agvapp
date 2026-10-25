@@ -15,8 +15,10 @@
       const layout = await this.request("layout");
       this.onState(await this.request("robots"));
       this.events = new EventSource("/api/events");
-      this.events.addEventListener("fleet", (event) => { this.onConnection(true); this.onState(JSON.parse(event.data)); });
+      this.lastEventAt = Date.now();
+      this.events.addEventListener("fleet", (event) => { this.lastEventAt = Date.now(); this.onConnection(true); this.onState(JSON.parse(event.data)); });
       this.events.onerror = () => this.onConnection(false);
+      this.watchdog = setInterval(() => { if (Date.now() - this.lastEventAt > 10000) this.onConnection(false); }, 1000);
       return layout;
     }
     order(value) { return this.request("orders", value); }

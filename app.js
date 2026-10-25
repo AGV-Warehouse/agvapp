@@ -17,17 +17,17 @@ function position(x, y) {
 function render() {
   const current = robots.find(r => r.id === selectedRobotId), connected = upstreamOnline && streamOnline;
   $("onlineCount").textContent = connected ? robots.filter(r => r.online && !r.stale).length : 0;
-  $("movingCount").textContent = connected ? robots.filter(r => r.status === "EXECUTING" && !r.paused).length : 0;
+  $("movingCount").textContent = connected ? robots.filter(r => r.status === "EXECUTING").length : 0;
   $("alertsCount").textContent = robots.filter(r => !connected || !r.online || r.stale).length;
   $("fleetMode").textContent = connected ? "openTCS" : "Unavailable";
   $("connectionPill").textContent = connected ? "Fleet connected" : "State stale / disconnected";
-  $("robotList").innerHTML = robots.map(r => '<button class="robot-row '+(r.id === selectedRobotId ? "active" : "")+'" data-robot-id="'+esc(r.id)+'"><span><strong>'+esc(r.id)+'</strong><small>'+esc(r.location || "Position unknown")+' · '+(r.battery == null ? "Battery unknown" : esc(r.battery)+"%")+'</small></span><span class="status-badge">'+esc(!connected || r.stale ? "STALE" : r.paused ? "PAUSED" : r.status)+'</span></button>').join("") || "No commissioned vehicles reported";
+  $("robotList").innerHTML = robots.map(r => '<button class="robot-row '+(r.id === selectedRobotId ? "active" : "")+'" data-robot-id="'+esc(r.id)+'"><span><strong>'+esc(r.id)+'</strong><small>'+esc(r.location || "Position unknown")+' · '+(r.battery == null ? "Battery unknown" : esc(r.battery)+"%")+'</small></span><span class="status-badge">'+esc(!connected || r.stale ? "STALE" : r.paused ? "PAUSE REQUESTED" : r.status)+'</span></button>').join("") || "No commissioned vehicles reported";
   $("robotMarkers").innerHTML = robots.map(r => {
     const p = position(r.x,r.y);
     return p ? '<button class="robot-marker '+(!connected || r.stale ? "alert" : "")+'" style="left:'+p[0]+'%;top:'+p[1]+'%" data-robot-id="'+esc(r.id)+'">'+esc(r.id)+'</button>' : "";
   }).join("");
   $("selectedRobotName").textContent = current?.id || "No vehicle selected";
-  $("robotState").textContent = current ? (!connected ? "STALE" : current.paused ? "PAUSED" : current.status) : "UNKNOWN";
+  $("robotState").textContent = current ? (!connected ? "STALE" : current.paused ? "PAUSE REQUESTED" : current.status) : "UNKNOWN";
   $("batteryValue").textContent = current?.battery == null ? "Unknown" : current.battery+"%";
   $("locationValue").textContent = current?.location || "Unknown";
   $("taskValue").textContent = current?.task || "No reported order";
@@ -49,7 +49,7 @@ $("navigateForm").addEventListener("submit", e => {
   e.preventDefault(); run(async () => {
     const content = {to: $("toPoint").value, robotId: selectedRobotId};
     if (!pendingSubmission || JSON.stringify(pendingSubmission.content) !== JSON.stringify(content))
-      pendingSubmission = {content, requestId: crypto.randomUUID()};
+      pendingSubmission = {content, requestId: Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("")};
     const result = await api.order({...content,requestId: pendingSubmission.requestId});
     pendingSubmission = null; log("Order "+result.id+" accepted; awaiting execution feedback");
   });
