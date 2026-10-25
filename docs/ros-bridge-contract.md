@@ -1,55 +1,29 @@
-# Fleet HTTP/SSE Contract
+# APP 消费的 Fleetserver 合同
 
-The page is served by fleet_gateway from the same origin as /api.
-openTCS is the order and traffic authority. The browser never rewrites a
-vehicle's physical position or simulates task completion.
+尽管沿用了历史文件名，APP 不直接连接 ROS。固定使用同源 `/api/v1`。
 
-## Read endpoints
+- GET layout / robots / capabilities：显示配置与真实状态。
+- GET events：SSE 命名事件 `fleet`，完整快照；错误或超过 10 秒没有有效事件则禁用依赖新鲜状态的操作。
+- POST commands：唯一写入口。
+- GET commands/{requestId}：凭据认证后的持久化回执查询。
+- GET orders/{orderId}：实际 openTCS 运输单状态。
 
-- GET /api/health: service and upstream availability
-- GET /api/robots: robots, orders, revision, upstreamOnline, freshnessSource
-- GET /api/layout: configured station IDs and display bounds in metres
-- GET /api/orders/{id}: actual openTCS transport order state
-- GET /api/events: named SSE event "fleet", containing a complete snapshot
+命令模板：
 
-Robot battery and velocity can be null. Missing/unverified data stays unknown.
-online is based on openTCS's driver-reported vehicle state, not a direct robot
-heartbeat. Gateway refresh age does not prove the robot is healthy.
+```json
+{
+  "protocolVersion":"1.0",
+  "requestId":"unique-intent-id",
+  "issuedAt":"2026-10-25T12:00:00Z",
+  "expiresAt":"2026-10-25T12:01:00Z",
+  "command":{"type":"create_order","robotId":"AGV-01","destination":"B"}
+}
+```
 
-## Control endpoints
+其余 command 类型为 pause / resume（robotId）、cancel_order（orderId）。新意图使用当前时间；重试复用整个原 JSON。Key 只放 X-Fleet-Key header，不放 URL；跨域写操作拒绝。批量暂停由客户端逐车调用，每台保留独立回执，不承诺原子批量操作。
 
-All mutations require X-Fleet-Key matching FLEET_API_KEY on the server.
-The key is kept in page memory. Cross-origin mutation is rejected.
+回执必须读取 status：ACCEPTED 是上游接受请求；REJECTED 是确定拒绝；DISPATCHING/UNKNOWN 需查询和对账。不能因 HTTP 200/202 就认为车辆已经到站或停止。用户改变目的地时若仍存在不确定意图，界面阻止自动生成替代请求。
 
-POST /api/orders:
-{"requestId":"unique-user-intent","to":"B","robotId":"AGV-01"}
+battery / velocity 可以为 null。online 取决于 openTCS driver 的报告，并非 APP 自行探测；snapshot age 也不是机器人健康证明。坐标单位 m，页面只换算显示百分比。
 
-robotId is optional for fleet allocation. to is a configured station ID.
-Unknown fields (including a browser-selected physical starting position) are
-rejected. Retry uncertain responses with the SAME requestId. A new content
-payload with a reused ID is rejected. An accepted order is not an arrival.
-
-- POST /api/orders/{id}/cancel: normal withdrawal, not an immediate emergency stop
-- POST /api/robots/{id}/pause
-- POST /api/robots/{id}/resume
-- POST /api/fleet/pause
-- POST /api/fleet/resume
-
-Pause/resume replies mean requests were submitted. Fleet replies include
-per-vehicle accepted/error results; they are not atomic fleet-wide control.
-Wait for reported vehicle state to confirm pause or completion.
-
-Web cmd_vel and hardware e-stop endpoints are NOT implemented in this release.
-The manual pad is disabled. Operational pause is not a hardware emergency stop.
-
-## Cache and reconnect
-
-API and SSE responses use no-store. The service worker caches only static
-assets. After a stream error or more than 10 seconds without a fleet update,
-controls relying on fresh state are disabled. The stream reconnects and receives
-a fresh complete snapshot. No cached position becomes control authority.
-
-## Run
-
-See ../fleet_integration/README.md in the workspace root. Open the page through
-the Gateway's HTTP server, not by opening index.html as a file.
+协议权威来源在独立 Fleetserver 仓库：`contracts/management-command.v1.schema.json`、`contracts/management-receipt.v1.schema.json`、`docs/PROTOCOL.zh-CN.md`。运行时可查询 `/api/v1/schema` 和 `/openapi.json`；不从 Server 仓库 import Python 代码。

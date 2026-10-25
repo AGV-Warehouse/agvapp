@@ -1,4 +1,4 @@
-const CACHE_NAME = "agv-fleet-control-v2";
+const CACHE_NAME = "agv-fleet-control-v3";
 const APP_FILES = ["./", "./index.html", "./styles.css", "./fleet-api.js", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {

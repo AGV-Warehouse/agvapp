@@ -48,9 +48,13 @@ $("controlKey").addEventListener("input", e => { api.key = e.target.value; });
 $("navigateForm").addEventListener("submit", e => {
   e.preventDefault(); run(async () => {
     const content = {to: $("toPoint").value, robotId: selectedRobotId};
-    if (!pendingSubmission || JSON.stringify(pendingSubmission.content) !== JSON.stringify(content))
+    if (pendingSubmission && JSON.stringify(pendingSubmission.content) !== JSON.stringify(content))
+      throw new Error("Resolve pending request "+pendingSubmission.requestId+" before changing destination or vehicle");
+    if (!pendingSubmission)
       pendingSubmission = {content, requestId: Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("")};
-    const result = await api.order({...content,requestId: pendingSubmission.requestId});
+    let result;
+    try { result = await api.order({...content,requestId: pendingSubmission.requestId}); }
+    catch (error) { if (error.definitive) pendingSubmission = null; throw error; }
     pendingSubmission = null; log("Order "+result.id+" accepted; awaiting execution feedback");
   });
 });
@@ -72,4 +76,3 @@ run(async () => {
   render();
 });
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(e => log(e.message));
-
