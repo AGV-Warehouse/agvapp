@@ -1,4 +1,4 @@
-const CACHE_NAME = "agv-fleet-control-v3";
+const CACHE_NAME = "agv-fleet-control-v4";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -45,7 +45,10 @@ self.addEventListener("fetch", (event) => {
   if (new URL(request.url).origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(request)
+    // no-cache: revalidate with the server every time. A plain fetch() may
+    // answer from the browser's HTTP cache, mixing a new index.html with an
+    // old app.js/styles.css.
+    fetch(request, { cache: "no-cache" })
       .then((response) => {
         if (response && response.ok) {
           const copy = response.clone();
