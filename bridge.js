@@ -76,6 +76,11 @@ function createMockBridge() {
     data[row * width] = 100;
     data[row * width + width - 1] = 100;
   }
+  // A chair (four legs 0.45 m apart) and a lone post, so ?ros=mock shows a
+  // furniture box from map.js (the post must stay unboxed).
+  [[15, 70], [24, 70], [15, 79], [24, 79], [75, 25]].forEach(([col, row]) => {
+    data[row * width + col] = 100;
+  });
   const fakeMap = {
     info: { resolution, width, height, origin: { position: { x: 0, y: 0 } } },
     data,

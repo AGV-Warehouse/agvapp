@@ -607,13 +607,6 @@ select {
   line-height: 1.4;
 }
 
-.sidebar-live-info {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-soft);
-  padding: 10px 12px;
-}
-
 .ros-url {
   margin: 2px 0 0;
   color: var(--ink);
@@ -791,5 +784,97 @@ button:disabled {
 
   .warehouse-map {
     min-height: 360px;
+  }
+}
+
+.map-legend .legend-keepout {
+  border: 1px solid var(--red);
+  border-radius: 2px;
+  background: rgba(198, 54, 46, 0.16);
+}
+
+/* Live mode: the map is what the operator watches, so it gets the screen.
+   The sidebar folds away (its only live content, the rosbridge URL, is in the
+   top bar) and the controls stack in a scrolling column on the right, with
+   jog + E-Stop first so they never start below the fold. */
+.mode-real .app-shell {
+  grid-template-columns: 1fr;
+}
+
+.mode-real .sidebar {
+  display: none;
+}
+
+.mode-real .workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  gap: 14px;
+  padding: 14px;
+}
+
+.mode-real .topbar {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+.mode-real .map-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+
+.mode-real .map-toolbar {
+  margin-bottom: 8px;
+}
+
+.mode-real .warehouse-map {
+  flex: 1;
+  min-height: 0;
+}
+
+.mode-real .control-grid {
+  grid-template-columns: 1fr;
+  align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.mode-real .manual-panel {
+  order: -1;
+}
+
+.mode-real .log-panel {
+  grid-column: auto;
+}
+
+@media (max-width: 980px) {
+  .mode-real .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    height: auto;
+  }
+
+  .mode-real .warehouse-map {
+    flex: none;
+    height: 70vh;
+  }
+
+  .mode-real .control-grid {
+    grid-template-columns: 1fr 1fr;
+    overflow: visible;
+  }
+
+  .mode-real .log-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .mode-real .control-grid {
+    grid-template-columns: 1fr;
   }
 }

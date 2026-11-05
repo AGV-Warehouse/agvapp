@@ -11,7 +11,10 @@ the full contract and phase status.
   self-contained) and `createRosBridge(url)` (real robot via rosbridge)
 - `map.js` — occupancy-grid canvas rendering + world/pixel coordinate transforms
 - Mock mode: the original 10-robot fake fleet, point-to-point nav, manual pad, e-stop
-- Real mode: live occupancy-grid map + live robot pose marker (read-only for now)
+- Real mode: live occupancy-grid map + live robot pose marker, map actions,
+  manual jog and E-Stop. The map fills most of the screen; furniture (groups
+  of leg-sized dots, e.g. chair legs) is drawn as red keep-out boxes
+- Tests: `node test/map.test.js` (no dependencies); manual checks in `TESTING.md`
 - Installable PWA metadata
 
 ## Run locally

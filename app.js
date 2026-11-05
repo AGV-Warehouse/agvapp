@@ -393,14 +393,16 @@ function initRealMode(bridge, sourceLabel) {
 
   bridge.onMap((mapMsg) => {
     mapInfo = renderOccupancyGrid(els.mapCanvas, mapMsg);
+    const furniture = findFurnitureBoxes(mapMsg);
+    drawFurnitureBoxes(ctx, mapInfo, furniture);
     // Cache the bare grid so pose updates can restore it without re-walking
     // the whole occupancy array on every frame.
     baseImageData = ctx.getImageData(0, 0, els.mapCanvas.width, els.mapCanvas.height);
     // Resolution arrives as a float32-widened double (0.02500000037252903),
     // so trim it before display.
     const res = +mapInfo.resolution.toFixed(4);
-    logMessage(`Received /map (${mapInfo.width}x${mapInfo.height} @ ${res}m)`);
-    // renderOccupancyGrid already painted the grid -- only the marker is
+    logMessage(`Received /map (${mapInfo.width}x${mapInfo.height} @ ${res}m), ${furniture.length} furniture boxes`);
+    // The grid and boxes are already painted -- only the marker is
     // missing, so don't re-blit via redraw().
     if (latestPose) drawPoseMarker(ctx, mapInfo, latestPose);
   });

@@ -19,10 +19,6 @@
           </div>
         </div>
 
-        <div class="real-only sidebar-live-info">
-          <p class="eyebrow">Live rosbridge</p>
-          <p id="rosUrlLabel" class="ros-url"></p>
-        </div>
 
         <section class="summary-grid mock-only" aria-label="Fleet summary">
           <div>
@@ -69,6 +65,7 @@
           <div>
             <p class="eyebrow">2.4GHz WiFi control room</p>
             <h2 id="selectedRobotName">Robot</h2>
+            <p id="rosUrlLabel" class="ros-url real-only"></p>
           </div>
           <div class="connection-pill" id="connectionPill">
             <span></span>
@@ -93,6 +90,7 @@
             </div>
             <div class="map-legend real-only" aria-label="Map legend">
               <span><i class="legend-robot"></i>Robot position</span>
+              <span><i class="legend-keepout"></i>Furniture (keep-out)</span>
             </div>
           </div>
 
