@@ -19,7 +19,12 @@
           </div>
         </div>
 
-        <section class="summary-grid" aria-label="Fleet summary">
+        <div class="real-only sidebar-live-info">
+          <p class="eyebrow">Live rosbridge</p>
+          <p id="rosUrlLabel" class="ros-url"></p>
+        </div>
+
+        <section class="summary-grid mock-only" aria-label="Fleet summary">
           <div>
             <span id="onlineCount">0</span>
             <p>Online</p>
@@ -34,7 +39,7 @@
           </div>
         </section>
 
-        <div class="sidebar-actions">
+        <div class="sidebar-actions mock-only">
           <button id="estopButton" class="danger-button" type="button" title="Emergency stop all robots">
             <span aria-hidden="true">&#9632;</span>
             <span>E-Stop All</span>
@@ -45,13 +50,18 @@
           </button>
         </div>
 
-        <section class="robot-list-wrap">
+        <section class="robot-list-wrap mock-only">
           <div class="section-title">
             <h2>Robots</h2>
             <span id="fleetMode">Mock ROS</span>
           </div>
           <div id="robotList" class="robot-list" aria-label="Robot list"></div>
         </section>
+
+        <footer class="sidebar-footer">
+          <p class="eyebrow">Engineering</p>
+          <p>Built by the engineering team in New York City.</p>
+        </footer>
       </aside>
 
       <main class="workspace">
@@ -68,26 +78,36 @@
 
         <section class="map-section" aria-label="Warehouse map">
           <div class="map-toolbar">
-            <div>
+            <div class="mock-only">
               <h3>Single Room Map</h3>
               <p>Temporary layout until the real warehouse map is provided.</p>
             </div>
-            <div class="map-legend" aria-label="Map legend">
+            <div class="real-only">
+              <h3>Warehouse Map</h3>
+              <p>Live occupancy grid from /map.</p>
+            </div>
+            <div class="map-legend mock-only" aria-label="Map legend">
               <span><i class="legend-robot"></i>Robot</span>
               <span><i class="legend-point"></i>Point</span>
               <span><i class="legend-zone"></i>Zone</span>
             </div>
+            <div class="map-legend real-only" aria-label="Map legend">
+              <span><i class="legend-robot"></i>Robot position</span>
+            </div>
           </div>
 
           <div class="warehouse-map" id="warehouseMap">
-            <div class="zone receiving">Receiving</div>
-            <div class="zone storage">Storage</div>
-            <div class="zone packing">Packing</div>
-            <div class="dock dock-a">Dock A</div>
-            <div class="dock dock-b">Dock B</div>
-            <div class="charging">Charging</div>
-            <div id="mapPoints"></div>
-            <div id="robotMarkers"></div>
+            <div class="mock-only">
+              <div class="zone receiving">Receiving</div>
+              <div class="zone storage">Storage</div>
+              <div class="zone packing">Packing</div>
+              <div class="dock dock-a">Dock A</div>
+              <div class="dock dock-b">Dock B</div>
+              <div class="charging">Charging</div>
+              <div id="mapPoints"></div>
+              <div id="robotMarkers"></div>
+            </div>
+            <canvas id="mapCanvas" class="real-only" aria-label="Live occupancy grid map"></canvas>
           </div>
         </section>
 
@@ -98,7 +118,7 @@
               <span id="robotState">Idle</span>
             </div>
             <dl class="status-list">
-              <div>
+              <div class="mock-only">
                 <dt>Battery</dt>
                 <dd id="batteryValue">--</dd>
               </div>
@@ -106,22 +126,30 @@
                 <dt>Location</dt>
                 <dd id="locationValue">--</dd>
               </div>
-              <div>
+              <div class="mock-only">
                 <dt>Task</dt>
                 <dd id="taskValue">--</dd>
               </div>
-              <div>
+              <div class="real-only">
+                <dt>Heading</dt>
+                <dd id="headingValue">--</dd>
+              </div>
+              <div class="mock-only">
                 <dt>Velocity</dt>
                 <dd id="velocityValue">--</dd>
               </div>
-              <div>
+              <div class="mock-only">
                 <dt>ROS Topic</dt>
                 <dd>/agv/cmd_vel</dd>
+              </div>
+              <div class="real-only">
+                <dt>ROS Topic</dt>
+                <dd>/amcl_pose</dd>
               </div>
             </dl>
           </section>
 
-          <section class="panel">
+          <section class="panel mock-only">
             <div class="section-title">
               <h3>Point To Point</h3>
               <span>Navigate</span>
@@ -142,7 +170,7 @@
             </form>
           </section>
 
-          <section class="panel manual-panel">
+          <section class="panel manual-panel mock-only">
             <div class="section-title">
               <h3>Manual</h3>
               <span>/cmd_vel</span>
@@ -156,10 +184,45 @@
             </div>
           </section>
 
+          <section class="panel real-only">
+            <div class="section-title">
+              <h3>Map Actions</h3>
+              <span>tap + drag</span>
+            </div>
+            <div class="map-actions">
+              <button id="armSetPose" class="mode-button" type="button">
+                Set Pose
+                <small>fix localization</small>
+              </button>
+              <button id="armSendGoal" class="mode-button" type="button">
+                Send Goal
+                <small>drive there</small>
+              </button>
+            </div>
+            <button id="cancelGoalButton" class="secondary-button wide" type="button">Cancel Goal</button>
+            <p id="mapActionHint" class="hint">Pick an action, then tap the map and drag to aim.</p>
+          </section>
+
+          <section class="panel manual-panel real-only">
+            <div class="section-title">
+              <h3>Manual Jog</h3>
+              <span>/cmd_vel</span>
+            </div>
+            <div class="manual-pad" id="jogPad" aria-label="Manual jog controls">
+              <button data-jog="forward" title="Forward">&uarr;</button>
+              <button data-jog="left" title="Turn left">&larr;</button>
+              <button data-jog="stop" class="stop-command" title="Stop">&#9632;</button>
+              <button data-jog="right" title="Turn right">&rarr;</button>
+              <button data-jog="backward" title="Reverse">&darr;</button>
+            </div>
+            <p class="hint">Hold to drive &middot; release stops instantly &middot; 0.1 m/s, 0.3 rad/s</p>
+            <button id="estopReal" class="danger-button wide" type="button">E-Stop &mdash; stop &amp; cancel</button>
+          </section>
+
           <section class="panel log-panel">
             <div class="section-title">
               <h3>Comms</h3>
-              <span>Mock bridge</span>
+              <span id="logPanelMode">Mock bridge</span>
             </div>
             <ol id="commsLog" class="comms-log" aria-label="Communication log"></ol>
           </section>
@@ -167,6 +230,9 @@
       </main>
     </div>
 
+    <script src="roslib.min.js"></script>
+    <script src="map.js"></script>
+    <script src="bridge.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

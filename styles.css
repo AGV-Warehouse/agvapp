@@ -573,6 +573,156 @@ select {
   grid-column: span 3;
 }
 
+/* Mode toggle -- body gets .mode-real when ?ros=... is present at startup.
+   .mock-only/.real-only elements exist in both modes' markup so app.js
+   never has to build/destroy DOM per mode, just toggle this one class. */
+.real-only {
+  display: none;
+}
+
+.mode-real .mock-only {
+  display: none;
+}
+
+.mode-real .real-only {
+  display: block;
+}
+
+/* .map-legend is flex by default; the generic .real-only rule above would
+   flatten it to block, so restore it. */
+.mode-real .map-legend.real-only {
+  display: flex;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.sidebar-footer p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.sidebar-live-info {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 10px 12px;
+}
+
+.ros-url {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+/* The canvas backing buffer is the grid's own cell dimensions; CSS scales it
+   up to fill the box. object-fit keeps the map's aspect ratio (letterboxing
+   rather than stretching) -- Phase 2's tap-to-goal must account for that
+   letterbox offset when mapping a click back through pixelToWorld. */
+#mapCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.connection-pill.disconnected {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+/* Real mode also has three panels (status / map actions / jog), so the
+   default 3-column control grid and span-3 log panel both still apply. */
+
+.map-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 14px 0 8px;
+}
+
+.mode-button {
+  display: grid;
+  gap: 2px;
+  min-height: 56px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-weight: 800;
+}
+
+.mode-button small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+#armSetPose.active {
+  border-color: var(--amber);
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+#armSendGoal.active {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.mode-button.active small {
+  color: inherit;
+}
+
+.wide {
+  width: 100%;
+}
+
+.hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.manual-panel .hint {
+  margin-bottom: 10px;
+}
+
+/* Armed: the map becomes a targeting surface. touch-action:none is required
+   so a drag aims the heading instead of scrolling the page on the tablet. */
+#mapCanvas.armed {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.manual-pad button:active,
+.manual-pad button.holding {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+/* Commands are gated on the connection -- a control that looks live while the
+   socket is down is worse than one that's visibly dead. */
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .comms-log {
   display: grid;
   gap: 7px;
