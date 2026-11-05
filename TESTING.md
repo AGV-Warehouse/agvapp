@@ -50,3 +50,15 @@ Verified 2026-11-05 in headless Chromium against `?ros=mock` and the repo's
 saved maps (`apartment_map_3`: 9 boxes, `my_map`: 6 boxes) at 1440x900,
 1180x820 and phone width; goal and set-pose taps land within one cell.
 Not yet checked on the robot or the operator tablet (steps 4–5).
+
+## 2. Service worker always revalidates
+
+**What changed (2026-11-05):** `sw.js` fetches with `cache: "no-cache"` (cache
+`v4`). Before, a network-first `fetch()` could still be answered from the
+browser's HTTP cache: after the §1 update a browser showed the new
+`index.html` with the old `app.js` and `styles.css` (rosbridge URL in the top
+bar, but the old layout and no furniture count in the log).
+
+**Pass:** serve the folder, load the app once, then edit any visible string in
+`app.js` and reload normally (no hard reload). The change appears on the first
+reload. With the server stopped, a reload still loads the app from the cache.
