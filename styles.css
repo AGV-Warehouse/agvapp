@@ -787,12 +787,6 @@ button:disabled {
   }
 }
 
-.map-legend .legend-keepout {
-  border: 1px solid var(--red);
-  border-radius: 2px;
-  background: rgba(198, 54, 46, 0.16);
-}
-
 /* Live mode: the map is what the operator watches, so it gets the screen.
    The sidebar folds away (its only live content, the rosbridge URL, is in the
    top bar) and the controls stack in a scrolling column on the right, with

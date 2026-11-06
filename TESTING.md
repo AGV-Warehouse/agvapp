@@ -1,6 +1,6 @@
 # agvapp testing
 
-## 1. Full-screen live map + furniture keep-out boxes
+## 1. Full-screen live map
 
 **What changed (2026-11-05):**
 
@@ -11,45 +11,35 @@
 - The map is drawn crisp: several canvas pixels per grid cell instead of one
   pixel stretched by CSS. `canvasPointToPixel()` divides that scale back out,
   so taps still land in grid cells.
-- `findFurnitureBoxes()` in `map.js` groups occupied blobs no bigger than
-  0.15 m (legs, posts) that are within 0.6 m of each other and draws one red
-  box per group of 2 or more, with a 0.1 m margin. A single isolated dot is
-  left as a dot. Legs touching a wall merge into the wall and aren't boxed.
-  The boxes are display only; Nav2 already treats any gap narrower than the
-  0.55 m footprint as blocked. Computed once per `/map`, in the browser, so it
-  costs the Jetson nothing.
+
+**Removed the same day: automatic "furniture" boxes.** They grouped
+leg-sized occupied blobs within 0.6 m of each other. On the live 0.025 m map
+the walls are broken into many short fragments, so the grouping chained wall
+fragments into large boxes covering open floor and gave no useful information.
+It's in git history (`36e0673`). Don't bring it back without testing on the
+robot's real map first; hand-drawn zones are the better route.
 
 **Pass criteria and commands:**
 
-1. **Unit test:**
-   ```bash
-   node test/map.test.js
-   ```
-   Pass: `map.test.js: PASS`.
-2. **Offline, no robot:**
+1. **Offline, no robot:**
    ```bash
    python3 -m http.server 5173
    ```
    Open http://localhost:5173/?ros=mock.
-   Pass: the Comms log reads `Received /map (100x100 @ 0.05m), 1 furniture boxes`.
-   The chair (four dots, upper left) has a red box; the single dot lower right
-   does not. No page scrollbar on a laptop-size window, and Manual Jog and
-   E-Stop are visible without scrolling.
-3. **Taps still map correctly (offline):** Send Goal, tap the centre of the
-   chair box. Pass: Location reads about `1.00, 3.75 m` once the mock robot
-   arrives. Set Pose and a drag-to-aim also land where the finger is.
-4. **Live robot, telemetry only (safe, no publishes):** with bringup, nav and
+   Pass: no page scrollbar on a laptop-size window; Manual Jog and E-Stop
+   visible without scrolling; walls drawn as sharp solid lines.
+2. **Taps still map correctly (offline):** Send Goal, tap a spot on the map.
+   Pass: the mock robot drives to the tapped spot. Set Pose and drag-to-aim
+   also land where the finger is.
+3. **Live robot, telemetry only (safe, no publishes):** with bringup, nav and
    rosbridge running, open `http://localhost:5173/?ros=ws://192.168.1.171:9090`.
-   Pass: the log reports the map size and a furniture box count; the boxes sit
-   on clusters of dots you recognise as furniture; the robot marker moves with
-   the robot.
-5. **Tablet:** open the same URL on the operator tablet in landscape.
+   Pass: the log reports the map size and the robot marker moves with the robot.
+4. **Tablet:** open the same URL on the operator tablet in landscape.
    Pass: map on the left, controls on the right, nothing cut off.
 
-Verified 2026-11-05 in headless Chromium against `?ros=mock` and the repo's
-saved maps (`apartment_map_3`: 9 boxes, `my_map`: 6 boxes) at 1440x900,
+Verified 2026-11-05 in headless Chromium against `?ros=mock` at 1440x900,
 1180x820 and phone width; goal and set-pose taps land within one cell.
-Not yet checked on the robot or the operator tablet (steps 4–5).
+Not yet checked on the operator tablet (step 4).
 
 ## 2. Service worker always revalidates
 
