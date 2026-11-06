@@ -2,173 +2,685 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#121826" />
-    <title>AGV Fleet Control</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#172337" />
+    <title>Fleetserver · Operations</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <svg
+      class="icon-library"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <symbol id="i-map" viewBox="0 0 24 24">
+          <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z M9 3v15 M15 6v15" />
+        </symbol>
+        <symbol id="i-robot" viewBox="0 0 24 24">
+          <rect x="4" y="7" width="16" height="13" rx="4" />
+          <path d="M12 3v4 M9 13h.01 M15 13h.01 M9 17h6 M1 12v4 M23 12v4" />
+        </symbol>
+        <symbol id="i-orders" viewBox="0 0 24 24">
+          <rect x="5" y="4" width="14" height="17" rx="2" />
+          <path d="M9 4V2h6v2 M9 10h6 M9 14h6 M9 18h3" />
+        </symbol>
+        <symbol id="i-activity" viewBox="0 0 24 24">
+          <path d="M2 12h5l3-8 4 16 3-8h5" />
+        </symbol>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 5 5" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24">
+          <rect x="5" y="10" width="14" height="11" rx="2" />
+          <path d="M8 10V6a4 4 0 0 1 8 0v4 M12 14v3" />
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24">
+          <path d="M12 5v14 M5 12h14" />
+        </symbol>
+        <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+        <symbol id="i-fit" viewBox="0 0 24 24">
+          <path d="M8 3H3v5 M16 3h5v5 M3 16v5h5 M21 16v5h-5" />
+          <rect x="8" y="8" width="8" height="8" rx="1" />
+        </symbol>
+        <symbol id="i-layers" viewBox="0 0 24 24">
+          <path d="m12 3 10 5-10 5L2 8Z M3 12l9 5 9-5 M3 16l9 5 9-5" />
+        </symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24">
+          <path
+            d="M20 7v5h-5 M4 17v-5h5 M5 8a8 8 0 0 1 13-3l2 2 M4 17l2 2a8 8 0 0 0 13-3"
+          />
+        </symbol>
+        <symbol id="i-pause" viewBox="0 0 24 24">
+          <path d="M8 5v14 M16 5v14" />
+        </symbol>
+        <symbol id="i-play" viewBox="0 0 24 24">
+          <path d="m8 4 12 8-12 8Z" />
+        </symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M4 12h16 M14 6l6 6-6 6" />
+        </symbol>
+        <symbol id="i-close" viewBox="0 0 24 24">
+          <path d="m6 6 12 12 M18 6 6 18" />
+        </symbol>
+        <symbol id="i-info" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 10v7 M12 7h.01" />
+        </symbol>
+        <symbol id="i-node" viewBox="0 0 24 24">
+          <circle cx="5" cy="18" r="3" />
+          <circle cx="19" cy="5" r="3" />
+          <path d="M5 15V9a4 4 0 0 1 4-4h7 M8 18h7a4 4 0 0 0 4-4v-2" />
+        </symbol>
+      </defs>
+    </svg>
+    <header class="app-header">
+      <a class="brand" href="./" aria-label="Fleetserver home"
+        ><span class="brand-symbol"
+          ><svg class="icon"><use href="#i-node" /></svg></span
+        ><span
+          >fleet<span class="brand-light">server</span
+          ><small>OPERATIONS WORKSPACE</small></span
+        ></a
+      >
+      <div class="header-context">
+        <span class="context-divider">/</span
+        ><span id="headerView">Overview</span
+        ><span class="environment-label">Live environment</span>
+      </div>
+      <div class="header-right">
+        <div id="connectionPill" class="connection-pill" role="status">
+          <i></i><span>Connecting</span>
+        </div>
+        <span class="header-divider"></span
+        ><button id="accessButton" class="button button-quiet">
+          <svg class="icon"><use href="#i-lock" /></svg
+          ><span id="accessLabel">Control access</span>
+        </button>
+      </div>
+    </header>
+    <div class="app-layout">
       <aside class="sidebar" aria-label="Fleet navigation">
-        <div class="brand-block">
-          <div class="brand-mark" aria-hidden="true">A</div>
-          <div>
-            <p class="eyebrow">Warehouse Fleet</p>
-            <h1>AGV Control</h1>
-          </div>
-        </div>
-
-        <section class="summary-grid" aria-label="Fleet summary">
-          <div>
-            <span id="onlineCount">0</span>
-            <p>Online</p>
-          </div>
-          <div>
-            <span id="movingCount">0</span>
-            <p>Executing</p>
-          </div>
-          <div>
-            <span id="alertsCount">0</span>
-            <p>Alerts</p>
-          </div>
-        </section>
-
-        <div class="sidebar-actions">
-          <button id="estopButton" class="danger-button" type="button" title="Request an operational pause; await vehicle confirmation">
-            <span aria-hidden="true">&#9632;</span>
-            <span>Pause Fleet</span>
+        <p class="sidebar-label">WORKSPACE</p>
+        <nav class="primary-nav" aria-label="Workspace views">
+          <button
+            class="nav-item active"
+            data-view="overview"
+            aria-current="page"
+            title="Overview"
+          >
+            <svg class="icon"><use href="#i-map" /></svg><span>Overview</span>
           </button>
-          <button id="resumeButton" class="secondary-button" type="button" title="Request fleet resume">
-            <span aria-hidden="true">&#9654;</span>
-            <span>Resume Fleet</span>
+          <button class="nav-item" data-view="vehicles" title="Vehicles">
+            <svg class="icon"><use href="#i-robot" /></svg><span>Vehicles</span
+            ><b id="vehicleNavCount">0</b>
           </button>
-        </div>
-
-        <section class="robot-list-wrap">
-          <div class="section-title">
-            <h2>Robots</h2>
-            <span id="fleetMode">Unavailable</span>
+          <button class="nav-item" data-view="orders" title="Transport orders">
+            <svg class="icon"><use href="#i-orders" /></svg
+            ><span>Transport orders</span><b id="orderNavCount">0</b>
+          </button>
+          <button class="nav-item" data-view="activity" title="Activity">
+            <svg class="icon"><use href="#i-activity" /></svg
+            ><span>Activity</span>
+          </button>
+        </nav>
+        <section class="sidebar-fleet">
+          <div class="sidebar-section-title">
+            <h2>VEHICLES</h2>
+            <span id="fleetMode">0 reported</span>
           </div>
-          <div id="robotList" class="robot-list" aria-label="Robot list"></div>
+          <label class="search-field"
+            ><svg class="icon"><use href="#i-search" /></svg
+            ><input
+              id="robotSearch"
+              type="search"
+              placeholder="Find a vehicle"
+              aria-label="Find a vehicle"
+              autocomplete="off"
+          /></label>
+          <div
+            id="robotList"
+            class="robot-list"
+            aria-label="Vehicle list"
+          ></div>
         </section>
+        <section class="model-tree">
+          <div class="sidebar-section-title">
+            <h2>PLANT MODEL</h2>
+            <span>openTCS</span>
+          </div>
+          <button class="tree-row" data-map-focus="points">
+            <i class="tree-dot"></i><span>Points</span
+            ><b id="pointCount">—</b></button
+          ><button class="tree-row" data-map-focus="paths">
+            <i class="tree-line"></i><span>Paths</span
+            ><b id="pathCount">—</b></button
+          ><button class="tree-row" data-map-focus="stations">
+            <i class="tree-dot station-dot"></i><span>Stations</span
+            ><b id="stationCount">—</b>
+          </button>
+        </section>
+        <div class="sidebar-footer">
+          <span id="sidebarStatus" class="server-status"
+            ><i></i>Waiting for server</span
+          ><span class="sidebar-footer-meta"
+            >Fleetserver <span>VDA 5050</span></span
+          >
+        </div>
       </aside>
-
-      <main class="workspace">
-        <header class="topbar">
+      <main id="workspace" class="workspace" data-view="overview">
+        <div class="workspace-heading">
           <div>
-            <p class="eyebrow">openTCS control room</p>
-            <h2 id="selectedRobotName">Robot</h2>
+            <p class="eyebrow">FLEET OPERATIONS</p>
+            <h1 id="viewTitle">Overview</h1>
+            <p id="viewDescription">
+              Your fleet, routes and transport orders in one workspace.
+            </p>
           </div>
-          <div class="connection-pill" id="connectionPill">
-            <span></span>
-            Connecting to Fleet Server
+          <div class="workspace-actions">
+            <button
+              id="estopButton"
+              class="button button-pause"
+              disabled
+              title="Request an operational pause; this is not an emergency stop"
+            >
+              <svg class="icon"><use href="#i-pause" /></svg
+              ><span>Pause fleet</span></button
+            ><button
+              id="resumeButton"
+              class="button icon-button"
+              disabled
+              title="Request fleet resume"
+              aria-label="Resume fleet"
+            >
+              <svg class="icon"><use href="#i-play" /></svg></button
+            ><button id="newOrderButton" class="button button-primary" disabled>
+              <svg class="icon"><use href="#i-plus" /></svg
+              ><span>New order</span>
+            </button>
           </div>
-        </header>
-
-        <section class="map-section" aria-label="Warehouse map">
-          <div class="map-toolbar">
-            <div>
-              <h3>Warehouse Layout</h3>
-              <p>Positions come from reported vehicle state. Commission the layout before operation.</p>
-              <label>Control key <input id="controlKey" type="password" autocomplete="off" /></label>
-            </div>
-            <div class="map-legend" aria-label="Map legend">
-              <span><i class="legend-robot"></i>Robot</span>
-              <span><i class="legend-point"></i>Point</span>
-              <span><i class="legend-zone"></i>Zone</span>
-            </div>
+        </div>
+        <section class="fleet-summary" aria-label="Fleet summary">
+          <div>
+            <span class="metric-label"
+              ><i class="metric-dot blue"></i>Total vehicles</span
+            ><strong id="totalCount">0</strong><small>reported by kernel</small>
           </div>
-
-          <div class="warehouse-map" id="warehouseMap">
-            <div class="zone receiving">Receiving</div>
-            <div class="zone storage">Storage</div>
-            <div class="zone packing">Packing</div>
-            <div class="dock dock-a">Dock A</div>
-            <div class="dock dock-b">Dock B</div>
-            <div class="charging">Charging</div>
-            <div id="mapPoints"></div>
-            <div id="robotMarkers"></div>
+          <div>
+            <span class="metric-label"
+              ><i class="metric-dot green"></i>Online</span
+            ><strong id="onlineCount">0</strong
+            ><small>with current feedback</small>
+          </div>
+          <div>
+            <span class="metric-label"
+              ><i class="metric-dot violet"></i>Executing</span
+            ><strong id="movingCount">0</strong
+            ><small>active vehicle tasks</small>
+          </div>
+          <div>
+            <span class="metric-label"
+              ><i class="metric-dot amber"></i>Needs attention</span
+            ><strong id="alertsCount">0</strong
+            ><small id="attentionCaption">no reported issues</small>
           </div>
         </section>
-
-        <section class="control-grid">
-          <section class="panel status-panel">
-            <div class="section-title">
-              <h3>Status</h3>
-              <span id="robotState">Idle</span>
+        <div id="staleBanner" class="notice" role="status" hidden>
+          <svg class="icon"><use href="#i-info" /></svg>Live feedback is
+          unavailable. Last reported positions may be out of date.
+        </div>
+        <div class="operations-grid">
+          <section class="map-panel panel" aria-label="Plant map">
+            <div class="panel-heading">
+              <div class="panel-title">
+                <svg class="icon"><use href="#i-map" /></svg>
+                <h2>Plant overview</h2>
+                <span id="modelName" class="subtle-label">Loading model</span>
+              </div>
+              <div class="map-toolbar">
+                <button
+                  id="refreshModel"
+                  class="button icon-button button-quiet"
+                  title="Refresh plant model"
+                  aria-label="Refresh plant model"
+                >
+                  <svg class="icon"><use href="#i-refresh" /></svg>
+                </button>
+                <details class="layer-menu">
+                  <summary
+                    class="button icon-button button-quiet"
+                    aria-label="Map layers"
+                    title="Map layers"
+                  >
+                    <svg class="icon"><use href="#i-layers" /></svg>
+                  </summary>
+                  <div class="layer-popover">
+                    <strong>Map layers</strong
+                    ><label
+                      ><input
+                        type="checkbox"
+                        data-layer="paths"
+                        checked
+                      />Paths</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        data-layer="points"
+                        checked
+                      />Points</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        data-layer="stations"
+                        checked
+                      />Stations</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        data-layer="robots"
+                        checked
+                      />Vehicles</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        data-layer="labels"
+                        checked
+                      />Labels</label
+                    >
+                  </div>
+                </details>
+              </div>
             </div>
-            <dl class="status-list">
-              <div>
-                <dt>Battery</dt>
-                <dd id="batteryValue">--</dd>
+            <div id="warehouseMap" class="warehouse-map">
+              <svg
+                id="mapSvg"
+                class="map-svg"
+                viewBox="-300 -200 600 400"
+                aria-label="Interactive plant topology"
+                role="group"
+              >
+                <defs>
+                  <marker
+                    id="route-arrow"
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="5"
+                    markerHeight="5"
+                    orient="auto-start-reverse"
+                  >
+                    <path
+                      d="M0 1 9 5 0 9"
+                      fill="none"
+                      stroke="context-stroke"
+                      stroke-width="1.5"
+                    />
+                  </marker>
+                </defs>
+                <g id="mapPaths"></g>
+                <g id="mapStations"></g>
+                <g id="mapPoints"></g>
+                <g id="robotMarkers"></g>
+              </svg>
+              <div id="mapEmpty" class="map-empty">
+                <div class="empty-map-art" aria-hidden="true">
+                  <svg viewBox="0 0 140 86">
+                    <path d="M14 64h38V22h44v42h30" />
+                    <circle cx="14" cy="64" r="5" />
+                    <circle cx="52" cy="22" r="5" />
+                    <circle cx="96" cy="64" r="5" />
+                    <rect x="120" y="58" width="12" height="12" rx="3" />
+                  </svg>
+                </div>
+                <span class="empty-tag">PLANT SETUP</span>
+                <h3 id="mapEmptyTitle">Connecting to your workspace</h3>
+                <p id="mapEmptyDescription">
+                  Waiting for the live plant model.
+                </p>
+                <button id="mapSetupButton" class="button button-white">
+                  Map setup guide<svg class="icon"><use href="#i-arrow" /></svg>
+                </button>
+                <div class="setup-progress">
+                  <span id="setupServer"><i></i>Server</span
+                  ><span id="setupModel"><i></i>Plant model</span
+                  ><span id="setupVehicles"><i></i>Vehicles</span>
+                </div>
               </div>
-              <div>
-                <dt>Location</dt>
-                <dd id="locationValue">--</dd>
+              <div class="map-compass" aria-label="Positive Y points upwards">
+                <svg viewBox="0 0 30 38" aria-hidden="true">
+                  <path d="m15 9 6 20-6-4-6 4Z" /></svg
+                ><span>+Y</span>
               </div>
-              <div>
-                <dt>Task</dt>
-                <dd id="taskValue">--</dd>
+              <div class="map-controls">
+                <button id="zoomIn" title="Zoom in" aria-label="Zoom in">
+                  <svg class="icon"><use href="#i-plus" /></svg></button
+                ><button id="zoomOut" title="Zoom out" aria-label="Zoom out">
+                  <svg class="icon"><use href="#i-minus" /></svg></button
+                ><span></span
+                ><button
+                  id="fitMap"
+                  title="Fit plant to view"
+                  aria-label="Fit plant to view"
+                >
+                  <svg class="icon"><use href="#i-fit" /></svg>
+                </button>
               </div>
-              <div>
-                <dt>Velocity</dt>
-                <dd id="velocityValue">--</dd>
+              <div id="mapFocusHint" class="map-focus-hint" hidden></div>
+            </div>
+            <div class="map-footer">
+              <div class="map-legend">
+                <span><i class="legend-path"></i>Path</span
+                ><span><i class="legend-point"></i>Point</span
+                ><span><i class="legend-robot"></i>Vehicle</span>
               </div>
-              <div>
-                <dt>Control</dt>
-                <dd>openTCS / VDA 5050</dd>
-              </div>
-            </dl>
+              <span id="mapCoordinates">Coordinates in metres</span>
+            </div>
           </section>
-
-          <section class="panel">
-            <div class="section-title">
-              <h3>Point To Point</h3>
-              <span>Navigate</span>
+          <section
+            class="vehicles-panel panel"
+            aria-label="Vehicle overview"
+            hidden
+          >
+            <div class="panel-heading">
+              <h2>Vehicles</h2>
+              <span class="subtle-label">Live reported state</span>
             </div>
-            <form id="navigateForm" class="navigate-form">
-              <label>
-                From
-                <select id="fromPoint"></select>
-              </label>
-              <label>
-                To
-                <select id="toPoint"></select>
-              </label>
-              <button class="primary-button" type="submit">
-                <span aria-hidden="true">&rarr;</span>
-                <span>Send Robot</span>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Vehicle</th>
+                    <th>Status</th>
+                    <th>Position</th>
+                    <th>Battery</th>
+                    <th>Current order</th>
+                  </tr>
+                </thead>
+                <tbody id="vehicleTable"></tbody>
+              </table>
+            </div>
+            <div id="vehiclesEmpty" class="table-empty">
+              <svg class="icon"><use href="#i-robot" /></svg>
+              <h3>No vehicles reported</h3>
+              <p>
+                Vehicles appear here when they are available in the connected
+                fleet.
+              </p>
+            </div>
+          </section>
+          <aside class="inspector panel" aria-label="Object inspector">
+            <div class="panel-heading">
+              <h2>Inspector</h2>
+              <span id="inspectorType" class="subtle-label">No selection</span>
+            </div>
+            <div
+              class="inspector-tabs"
+              role="tablist"
+              aria-label="Inspector tabs"
+            >
+              <button id="detailsTab" role="tab" aria-selected="true">
+                Details</button
+              ><button id="dispatchTab" role="tab" aria-selected="false">
+                Dispatch
               </button>
-            </form>
-            <button id="cancelOrder" class="secondary-button" type="button">Withdraw current order</button>
-          </section>
-
-          <section class="panel manual-panel">
-            <div class="section-title">
-              <h3>Manual</h3>
-              <span>Disabled in fleet mode</span>
             </div>
-            <div class="manual-pad" aria-label="Manual robot commands">
-              <button data-command="forward" title="Forward">&uarr;</button>
-              <button data-command="left" title="Turn left">&larr;</button>
-              <button data-command="stop" class="stop-command" title="Stop">&#9632;</button>
-              <button data-command="right" title="Turn right">&rarr;</button>
-              <button data-command="backward" title="Reverse">&darr;</button>
+            <div id="detailsContent">
+              <div id="inspectorEmpty" class="inspector-empty">
+                <span class="inspector-empty-icon"
+                  ><svg class="icon"><use href="#i-robot" /></svg
+                ></span>
+                <h3>Select an object</h3>
+                <p>
+                  Choose a vehicle, point or path to inspect its live details.
+                </p>
+                <div class="inspector-hint">
+                  <svg class="icon"><use href="#i-info" /></svg
+                  ><span
+                    >Click an object on the map or choose a vehicle from the
+                    sidebar.</span
+                  >
+                </div>
+              </div>
+              <div id="objectDetails" hidden>
+                <div class="object-heading">
+                  <span id="objectIcon" class="object-icon"></span>
+                  <div>
+                    <h3 id="selectedRobotName">—</h3>
+                    <span id="robotState" class="status-badge">—</span>
+                  </div>
+                </div>
+                <dl id="objectProperties" class="property-list"></dl>
+                <button
+                  id="cancelOrder"
+                  class="button button-withdraw"
+                  disabled
+                >
+                  Withdraw current order
+                </button>
+              </div>
+            </div>
+            <div id="dispatchContent" class="dispatch-content" hidden>
+              <p class="section-caption">Create a transport order</p>
+              <form id="navigateForm">
+                <label
+                  >Vehicle<select
+                    id="dispatchRobot"
+                    aria-label="Dispatch vehicle"
+                  ></select
+                ></label>
+                <div class="origin-row">
+                  <span class="origin-dot"></span>
+                  <div>
+                    <small>FROM</small
+                    ><strong id="fromPoint">Reported vehicle position</strong>
+                  </div>
+                </div>
+                <label
+                  >Destination<select
+                    id="toPoint"
+                    aria-label="Destination"
+                  ></select
+                ></label>
+                <div id="dispatchHint" class="dispatch-hint">
+                  Select an available vehicle to create an order.
+                </div>
+                <button
+                  id="sendOrderButton"
+                  class="button button-primary"
+                  type="submit"
+                  disabled
+                >
+                  Send order<svg class="icon"><use href="#i-arrow" /></svg>
+                </button>
+              </form>
+              <p class="fine-print">
+                An accepted request is not an arrival confirmation. Follow the
+                reported vehicle state.
+              </p>
+            </div>
+            <div class="inspector-footer">
+              <svg class="icon"><use href="#i-lock" /></svg
+              ><span id="inspectorAccess">Read-only session</span
+              ><button id="inspectorAccessButton">Manage access</button>
+            </div>
+          </aside>
+          <section class="lower-panel panel" aria-label="Orders and activity">
+            <div class="lower-tabs" role="tablist" aria-label="Operations data">
+              <button id="ordersTab" role="tab" aria-selected="true">
+                Transport orders<span id="ordersTabCount">0</span></button
+              ><button id="activityTab" role="tab" aria-selected="false">
+                Activity<span id="activityTabCount">0</span></button
+              ><span id="dataFreshness">Waiting for live state</span>
+            </div>
+            <div id="ordersContent">
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Order</th>
+                      <th>Vehicle</th>
+                      <th>Destination</th>
+                      <th>State</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ordersTable"></tbody>
+                </table>
+              </div>
+              <div id="ordersEmpty" class="orders-empty">
+                <span class="order-empty-icon"
+                  ><svg class="icon"><use href="#i-orders" /></svg
+                ></span>
+                <div>
+                  <h3>No transport orders</h3>
+                  <p>Orders from the connected fleet will appear here.</p>
+                </div>
+                <span class="empty-table-note"
+                  >Live data · No sample orders</span
+                >
+              </div>
+            </div>
+            <div id="activityContent" hidden>
+              <ol
+                id="commsLog"
+                class="activity-list"
+                aria-label="Activity log"
+                aria-live="polite"
+              ></ol>
+              <div id="activityEmpty" class="orders-empty">
+                <span class="order-empty-icon"
+                  ><svg class="icon"><use href="#i-activity" /></svg
+                ></span>
+                <div>
+                  <h3>No session activity yet</h3>
+                  <p>Connection changes and operation receipts appear here.</p>
+                </div>
+              </div>
             </div>
           </section>
-
-          <section class="panel log-panel">
-            <div class="section-title">
-              <h3>Comms</h3>
-              <span>Fleet API</span>
-            </div>
-            <ol id="commsLog" class="comms-log" aria-label="Communication log"></ol>
-          </section>
-        </section>
+        </div>
+        <footer class="workspace-footer">
+          <span
+            ><i class="live-dot"></i
+            ><span id="footerState">Connecting to live data</span></span
+          ><span
+            >openTCS<span class="footer-separator">/</span>VDA 5050<span
+              class="footer-separator"
+              >/</span
+            ><span id="sessionClock"></span
+          ></span>
+        </footer>
       </main>
     </div>
-
+    <dialog id="accessDialog" class="app-dialog">
+      <form id="accessForm">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">SESSION ACCESS</span>
+            <h2>Enable fleet controls</h2>
+          </div>
+          <button
+            class="button icon-button button-quiet"
+            type="button"
+            data-close-dialog
+            aria-label="Close access dialog"
+          >
+            <svg class="icon"><use href="#i-close" /></svg>
+          </button>
+        </div>
+        <p>
+          Enter your operator control key to request transport orders, pauses
+          and withdrawals.
+        </p>
+        <label
+          >Control key<input
+            id="controlKey"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Enter your operator key"
+            required
+        /></label>
+        <p class="fine-print">
+          Your key stays in this browser tab's memory and is cleared when you
+          leave.
+        </p>
+        <p id="accessError" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button id="clearAccess" class="button" type="button">
+            End control session</button
+          ><button id="saveAccess" class="button button-primary" type="submit">
+            Enable controls
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="setupDialog" class="app-dialog setup-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">PLANT SETUP</span>
+          <h2>One site. Two map layers.</h2>
+        </div>
+        <button
+          class="button icon-button button-quiet"
+          data-close-dialog
+          aria-label="Close map setup guide"
+        >
+          <svg class="icon"><use href="#i-close" /></svg>
+        </button>
+      </div>
+      <p>
+        Your robot's navigation map describes free space. The openTCS plant
+        model defines the permitted network of points, paths and stations.
+      </p>
+      <ol class="setup-steps">
+        <li>
+          <span>01</span>
+          <div>
+            <h3>Survey the real workspace</h3>
+            <p>
+              Build and validate a SLAM map on the robot. Save the image and its
+              map metadata together.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span>02</span>
+          <div>
+            <h3>Align the coordinate systems</h3>
+            <p>
+              Use the same origin, orientation and measured scale. ROS uses
+              metres; openTCS model coordinates use millimetres.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span>03</span>
+          <div>
+            <h3>Load a measured plant model</h3>
+            <p>
+              Define stations and approved routes in openTCS Model Editor, load
+              the model into the kernel, then refresh this view.
+            </p>
+          </div>
+        </li>
+      </ol>
+      <p class="fine-print">
+        This view displays the live plant model. It does not generate or approve
+        routes from an image.
+      </p>
+      <a
+        class="button button-primary"
+        href="https://opentcs.org/docs/7/users-guide.html"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Open the openTCS guide<svg class="icon"><use href="#i-arrow" /></svg
+      ></a>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
     <script src="fleet-api.js"></script>
     <script src="app.js"></script>
   </body>

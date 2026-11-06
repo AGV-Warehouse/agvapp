@@ -1,10 +1,10 @@
 {
-  "name": "AGV Fleet Control",
-  "short_name": "AGV Control",
+  "name": "Fleetserver Operations",
+  "short_name": "Fleetserver",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#eef2f5",
-  "theme_color": "#121826",
+  "background_color": "#f4f6f9",
+  "theme_color": "#172337",
   "icons": [
     {
       "src": "icon.svg",

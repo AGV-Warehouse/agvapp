@@ -49,3 +49,15 @@ test('fleet actions preserve per-robot partial failure',async()=>{
   const api=new scope.FleetAPI(()=>{},()=>{});const result=await api.fleet('pause');
   assert.equal(result.allAccepted,false);assert.equal(result.results[0].accepted,true);assert.equal(result.results[1].accepted,false);
 });
+
+test('control key verification only reads a receipt and preserves auth failures',async()=>{
+  let observed;
+  const scope=context(async(url,options)=>{observed={url,options};return {ok:false,status:404,json:async()=>({detail:'Not found'})};});
+  const api=new scope.FleetAPI(()=>{},()=>{});api.key='test-only-key';
+  await api.verifyKey();
+  assert.match(observed.url,/^\/api\/v1\/commands\/access-check-/);
+  assert.equal(observed.options.method,'GET');assert.equal(observed.options.body,undefined);
+  assert.equal(observed.options.headers['X-Fleet-Key'],'test-only-key');
+  scope.fetch=async()=>({ok:false,status:401,json:async()=>({detail:'Authentication required'})});
+  await assert.rejects(()=>api.verifyKey(),error=>error.status===401);
+});
