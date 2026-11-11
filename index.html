@@ -90,6 +90,9 @@
             </div>
             <div class="map-legend real-only" aria-label="Map legend">
               <span><i class="legend-robot"></i>Robot position</span>
+              <span><i class="legend-wall"></i>Wall</span>
+              <span><i class="legend-object"></i>Object</span>
+              <span><i class="legend-speck"></i>Speck</span>
             </div>
           </div>
 
@@ -214,6 +217,16 @@
             </div>
             <p class="hint">Hold to drive &middot; release stops instantly &middot; 0.1 m/s, 0.3 rad/s</p>
             <button id="estopReal" class="danger-button wide" type="button">E-Stop &mdash; stop &amp; cancel</button>
+          </section>
+
+          <section class="panel real-only">
+            <div class="section-title">
+              <h3>Map Detection</h3>
+              <span id="detectionSummary">--</span>
+            </div>
+            <div id="detectionControls" class="detect-controls"></div>
+            <button id="detectionReset" class="secondary-button wide" type="button">Reset to defaults</button>
+            <p class="hint">Display only &mdash; navigation still uses the raw map. Saved in this browser.</p>
           </section>
 
           <section class="panel log-panel">

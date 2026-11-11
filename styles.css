@@ -787,6 +787,54 @@ button:disabled {
   }
 }
 
+.map-legend .legend-wall,
+.map-legend .legend-object,
+.map-legend .legend-speck {
+  border-radius: 2px;
+}
+
+.legend-wall {
+  background: #1f2937;
+}
+
+.legend-object {
+  border: 1px solid #b45309;
+  background: rgba(217, 119, 6, 0.3);
+}
+
+.legend-speck {
+  background: #94a3b8;
+}
+
+.detect-controls {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.detect-row {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.detect-row span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.detect-row b {
+  color: var(--ink);
+  text-transform: none;
+}
+
+.detect-row input {
+  width: 100%;
+  accent-color: var(--blue);
+}
+
 /* Live mode: the map is what the operator watches, so it gets the screen.
    The sidebar folds away (its only live content, the rosbridge URL, is in the
    top bar) and the controls stack in a scrolling column on the right, with

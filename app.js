@@ -33,6 +33,9 @@ const els = {
   batteryValue: document.querySelector("#batteryValue"),
   cancelGoalButton: document.querySelector("#cancelGoalButton"),
   commsLog: document.querySelector("#commsLog"),
+  detectionControls: document.querySelector("#detectionControls"),
+  detectionReset: document.querySelector("#detectionReset"),
+  detectionSummary: document.querySelector("#detectionSummary"),
   connectionPill: document.querySelector("#connectionPill"),
   estopButton: document.querySelector("#estopButton"),
   estopReal: document.querySelector("#estopReal"),
@@ -392,17 +395,103 @@ function initRealMode(bridge, sourceLabel) {
   });
 
   bridge.onMap((mapMsg) => {
-    mapInfo = renderOccupancyGrid(els.mapCanvas, mapMsg);
-    // Cache the bare grid so pose updates can restore it without re-walking
-    // the whole occupancy array on every frame.
-    baseImageData = ctx.getImageData(0, 0, els.mapCanvas.width, els.mapCanvas.height);
+    mapMsgCache = mapMsg;
+    const result = paintMap();
     // Resolution arrives as a float32-widened double (0.02500000037252903),
     // so trim it before display.
     const res = +mapInfo.resolution.toFixed(4);
-    logMessage(`Received /map (${mapInfo.width}x${mapInfo.height} @ ${res}m)`);
-    // renderOccupancyGrid already painted the grid -- only the marker is
-    // missing, so don't re-blit via redraw().
-    if (latestPose) drawPoseMarker(ctx, mapInfo, latestPose);
+    logMessage(
+      `Received /map (${mapInfo.width}x${mapInfo.height} @ ${res}m): ${result.walls} walls, ${result.boxes.length} objects`,
+    );
+  });
+
+  // --- walls vs objects (display only; see classifyMap in map.js) --------
+  // The sliders re-run the detection on the cached /map in the browser, so
+  // tuning costs the Jetson nothing. Settings are remembered per browser.
+  const DETECTION_STORAGE_KEY = "agv.mapDetection";
+  const DETECTION_SLIDERS = [
+    { key: "wallGap", label: "Join wall gaps up to", min: 0, max: 0.4, step: 0.025, unit: " m" },
+    { key: "wallMinLength", label: "Wall if longer than", min: 0.3, max: 4, step: 0.1, unit: " m" },
+    { key: "objectLink", label: "Group object dots within", min: 0, max: 1.2, step: 0.05, unit: " m" },
+    { key: "objectMaxSize", label: "Largest object", min: 0.3, max: 3, step: 0.1, unit: " m" },
+    { key: "objectMinDots", label: "Dots needed for a box", min: 1, max: 8, step: 1, unit: "" },
+  ];
+  let mapMsgCache = null;
+  let repaintQueued = false;
+  let detection = loadDetection();
+
+  function loadDetection() {
+    const settings = { ...MAP_DETECTION_DEFAULTS };
+    let stored = {};
+    try {
+      stored = JSON.parse(localStorage.getItem(DETECTION_STORAGE_KEY)) || {};
+    } catch (error) {
+      stored = {};
+    }
+    // Stored values are untrusted: keep only finite numbers, clamped to range.
+    DETECTION_SLIDERS.forEach(({ key, min, max }) => {
+      const value = Number(stored[key]);
+      if (Number.isFinite(value)) settings[key] = Math.min(max, Math.max(min, value));
+    });
+    return settings;
+  }
+
+  function saveDetection() {
+    try {
+      localStorage.setItem(DETECTION_STORAGE_KEY, JSON.stringify(detection));
+    } catch (error) {
+      // private window / storage blocked: settings just won't persist
+    }
+  }
+
+  function paintMap() {
+    const result = classifyMap(mapMsgCache, detection);
+    mapInfo = renderOccupancyGrid(els.mapCanvas, mapMsgCache, result.cellClass);
+    drawObjectBoxes(ctx, mapInfo, result.boxes);
+    // Cache the painted map so pose updates can restore it without re-walking
+    // the whole occupancy array on every frame.
+    baseImageData = ctx.getImageData(0, 0, els.mapCanvas.width, els.mapCanvas.height);
+    els.detectionSummary.textContent = `${result.walls} walls · ${result.boxes.length} objects`;
+    redraw();
+    return result;
+  }
+
+  function syncDetectionControls() {
+    DETECTION_SLIDERS.forEach(({ key, unit }) => {
+      els.detectionControls.querySelector(`[data-key="${key}"]`).value = detection[key];
+      els.detectionControls.querySelector(`[data-out="${key}"]`).textContent = `${+detection[key].toFixed(3)}${unit}`;
+    });
+  }
+
+  els.detectionControls.innerHTML = DETECTION_SLIDERS.map(
+    ({ key, label, min, max, step }) => `
+      <label class="detect-row">
+        <span>${label} <b data-out="${key}"></b></span>
+        <input type="range" data-key="${key}" min="${min}" max="${max}" step="${step}" />
+      </label>`,
+  ).join("");
+  syncDetectionControls();
+
+  els.detectionControls.addEventListener("input", (event) => {
+    const key = event.target.dataset.key;
+    if (!key) return;
+    detection[key] = Number(event.target.value);
+    syncDetectionControls();
+    saveDetection();
+    if (mapMsgCache && !repaintQueued) {
+      repaintQueued = true;
+      requestAnimationFrame(() => {
+        repaintQueued = false;
+        paintMap();
+      });
+    }
+  });
+
+  els.detectionReset.addEventListener("click", () => {
+    detection = { ...MAP_DETECTION_DEFAULTS };
+    saveDetection();
+    syncDetectionControls();
+    if (mapMsgCache) paintMap();
   });
 
   bridge.onPose((pose) => {

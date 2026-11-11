@@ -76,6 +76,16 @@ function createMockBridge() {
     data[row * width] = 100;
     data[row * width + width - 1] = 100;
   }
+  // Test cases for map.js's wall/object detection in ?ros=mock: a chair (four
+  // legs 0.45 m apart) gets an object box, a lone post stays a grey speck, and
+  // a wall broken into fragments with 5 cm gaps is drawn as one wall.
+  [[15, 70], [24, 70], [15, 79], [24, 79], [75, 25]].forEach(([col, row]) => {
+    data[row * width + col] = 100;
+  });
+  for (let col = 55; col < 95; col += 3) {
+    data[50 * width + col] = 100;
+    data[50 * width + col + 1] = 100;
+  }
   const fakeMap = {
     info: { resolution, width, height, origin: { position: { x: 0, y: 0 } } },
     data,

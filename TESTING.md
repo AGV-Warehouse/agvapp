@@ -52,3 +52,54 @@ bar, but the old layout and no furniture count in the log).
 **Pass:** serve the folder, load the app once, then edit any visible string in
 `app.js` and reload normally (no hard reload). The change appears on the first
 reload. With the server stopped, a reload still loads the app from the cache.
+
+## 3. Walls vs objects, with adjustable detection
+
+**What changed (2026-11-05):** `classifyMap()` in `map.js` sorts the map's
+occupied cells into walls, objects and specks, and a Map Detection panel
+lets the operator tune it live. Display only: navigation still uses the raw
+map. It runs in the browser on the cached `/map`, so moving a slider costs the
+Jetson nothing.
+
+How it decides (all distances in meters, so they hold at any resolution):
+
+1. Occupied cells are grown by half of **Join wall gaps up to** and joined
+   into blobs. A wall broken into short fragments becomes one blob.
+2. A blob longer than **Wall if longer than** (bounding-box diagonal), or
+   bigger than **Largest object**, is a wall (dark).
+3. Remaining blobs within **Group object dots within** of each other merge
+   into one object, but never past **Largest object**. That cap is what the
+   §1 version lacked: without it, wall fragments chained into huge boxes.
+4. An object with at least **Dots needed for a box** parts gets an amber box;
+   smaller ones are grey specks.
+
+Defaults: 0.1 m, 1.0 m, 0.5 m, 1.2 m, 2 dots. Settings are saved per browser
+(`localStorage`, key `agv.mapDetection`); stored values are clamped to each
+slider's range. **Reset to defaults** restores them.
+
+**Pass criteria and commands:**
+
+1. **Unit test:**
+   ```bash
+   node test/map.test.js
+   ```
+   Pass: `map.test.js: PASS`. It covers a solid wall, a wall with 5 cm gaps,
+   a chair (4 legs), a lone post, a dot line that must not chain into one
+   box, and every slider at both extremes.
+2. **Offline:** open http://localhost:5173/?ros=mock.
+   Pass: the log reads `Received /map (100x100 @ 0.05m): 2 walls, 1 objects`.
+   The chair (upper left) has an amber box, the broken line in the middle is
+   dark like the outer walls, and the single dot lower right is grey.
+3. **Sliders:** move **Dots needed for a box** to 1.
+   Pass: the lone dot gets a box and the panel summary updates immediately.
+   Reload: the setting is kept. **Reset to defaults**: back to 1 object.
+4. **Live map:** with the robot running, open
+   `http://localhost:5173/?ros=ws://192.168.1.171:9090`.
+   Pass: walls are dark and furniture/clutter is boxed. If walls come out
+   amber, raise **Join wall gaps up to**; if objects merge into walls, lower it.
+
+Verified 2026-11-05 in headless Chromium: `?ros=mock`, the repo's
+`apartment_map_3` (11 walls, 6 objects), and a 326x590 @ 0.025 m grid
+rebuilt from a screenshot of the live map (11 walls, 11 objects, no box over
+open floor). Not yet checked against the live `/map` itself (step 4).
+
