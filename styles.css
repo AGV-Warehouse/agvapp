@@ -806,6 +806,12 @@ button:disabled {
   background: #94a3b8;
 }
 
+.map-legend .legend-path {
+  height: 4px;
+  border-radius: 2px;
+  background: #16a34a;
+}
+
 .detect-controls {
   display: grid;
   gap: 12px;

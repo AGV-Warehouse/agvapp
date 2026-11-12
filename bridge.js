@@ -6,6 +6,9 @@
 //
 //   onPose(cb)               cb({x, y, yaw})            -- meters, radians
 //   onMap(cb)                cb(rawOccupancyGridMsg)    -- raw nav_msgs/OccupancyGrid
+//   onPath(cb)               cb([{x, y}, ...])          -- the planner's current path, map frame
+//   publishBoxes(rects)      object boxes the planner must avoid; flat
+//                            [xmin, ymin, xmax, ymax, ...] in map-frame meters
 //   onConnectionChange(cb)   cb(connected: boolean)
 //   sendGoal(x, y, yaw)      publish a nav goal
 //   setPose(x, y, yaw)       set localization (initialpose)
@@ -61,7 +64,9 @@ function initialPoseCovariance() {
 function createMockBridge() {
   const poseListeners = [];
   const mapListeners = [];
+  const pathListeners = [];
   const connectionListeners = [];
+  const emitPath = (path) => pathListeners.forEach((cb) => cb(path));
 
   // A plain 5m x 5m room with border walls, shaped like a real nav_msgs/OccupancyGrid.
   const resolution = 0.05;
@@ -121,9 +126,14 @@ function createMockBridge() {
       connectionListeners.push(cb);
       cb(true);
     },
+    onPath(cb) {
+      pathListeners.push(cb);
+    },
+    publishBoxes() {}, // the mock robot drives straight lines; nothing to avoid with
     sendGoal(x, y, yaw) {
       stopGoalAnimation();
       const start = { ...pose };
+      emitPath([{ x: start.x, y: start.y }, { x, y }]);
       const steps = 15;
       let step = 0;
       goalAnimation = setInterval(() => {
@@ -159,6 +169,7 @@ function createMockBridge() {
     },
     cancel() {
       stopGoalAnimation();
+      emitPath([]);
     },
   };
 }
@@ -171,6 +182,7 @@ function createRosBridge(url) {
   const ros = new ROSLIB.Ros({ url });
   const poseListeners = [];
   const mapListeners = [];
+  const pathListeners = [];
   const connectionListeners = [];
 
   ros.on("connection", () => connectionListeners.forEach((cb) => cb(true)));
@@ -198,6 +210,15 @@ function createRosBridge(url) {
     mapTopic.unsubscribe();
   });
 
+  // The global plan. The planner republishes it at 1 Hz while a goal is
+  // active (and not at all otherwise), so 1000 ms keeps every replan. Only
+  // x/y are kept: the message is a few hundred stamped poses.
+  const planTopic = new ROSLIB.Topic({ ros, name: "/plan", messageType: "nav_msgs/Path", throttle_rate: 1000 });
+  planTopic.subscribe((message) => {
+    const path = message.poses.map((p) => ({ x: p.pose.position.x, y: p.pose.position.y }));
+    pathListeners.forEach((cb) => cb(path));
+  });
+
   // --- publishers / services (Phase 2 + 3) --------------------------------
   const cmdVelTopic = new ROSLIB.Topic({ ros, name: "/cmd_vel", messageType: "geometry_msgs/Twist" });
   const goalTopic = new ROSLIB.Topic({ ros, name: "/goal_pose", messageType: "geometry_msgs/PoseStamped" });
@@ -205,6 +226,14 @@ function createRosBridge(url) {
     ros,
     name: "/initialpose",
     messageType: "geometry_msgs/PoseWithCovarianceStamped",
+  });
+  // Latched, so the robot's object_boxes node gets the list even if it starts
+  // (or finishes DDS discovery) after the app sent it.
+  const boxesTopic = new ROSLIB.Topic({
+    ros,
+    name: "/object_boxes",
+    messageType: "std_msgs/Float32MultiArray",
+    latch: true,
   });
   // Hidden from `ros2 service list` (the _action/ name component), but callable.
   const cancelService = new ROSLIB.Service({
@@ -231,6 +260,7 @@ function createRosBridge(url) {
   cmdVelTopic.advertise();
   goalTopic.advertise();
   initialPoseTopic.advertise();
+  boxesTopic.advertise();
 
   // Stamp 0 is deliberate: tf2 reads time 0 as "latest available transform",
   // which avoids goals being rejected for clock skew between the tablet and
@@ -261,6 +291,12 @@ function createRosBridge(url) {
     },
     onConnectionChange(cb) {
       connectionListeners.push(cb);
+    },
+    onPath(cb) {
+      pathListeners.push(cb);
+    },
+    publishBoxes(rects) {
+      boxesTopic.publish(new ROSLIB.Message({ layout: { dim: [], data_offset: 0 }, data: rects }));
     },
     sendGoal(x, y, yaw) {
       goalTopic.publish(

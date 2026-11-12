@@ -103,3 +103,42 @@ Verified 2026-11-05 in headless Chromium: `?ros=mock`, the repo's
 rebuilt from a screenshot of the live map (11 walls, 11 objects, no box over
 open floor). Not yet checked against the live `/map` itself (step 4).
 
+
+## 4. Object boxes sent to the planner, planned path on the map
+
+**What changed (2026-11-11):**
+
+- The amber object boxes are no longer display only. The app publishes them
+  on `/object_boxes` (`std_msgs/Float32MultiArray`, flat
+  `[xmin, ymin, xmax, ymax, ...]` in map-frame meters, latched) when `/map`
+  arrives, when a detection slider is **released**, and on **Reset to
+  defaults**. The robot stamps them into the map its global planner uses
+  (linorobot-new `TESTING.md` section 24), so it drives around a whole table
+  instead of between its legs.
+- The planner's path (`/plan`, throttled to 1 Hz) is drawn in green, from the
+  robot to the goal. Only the part still ahead of the robot is drawn; it
+  disappears on arrival, Cancel Goal, E-Stop and Set Pose.
+
+A wrong box now blocks the robot: a box over open floor is a no-go area, and
+a goal inside a box is rejected. Tune the sliders until the boxes match the
+furniture before sending goals. Boxes stay on the robot after the app closes,
+until navigation is restarted.
+
+**Pass criteria and commands:**
+
+1. **Unit test:** `node test/map.test.js` prints `map.test.js: PASS` (covers
+   box-to-world rectangles and path trimming).
+2. **Offline:** open http://localhost:5173/?ros=mock.
+   Pass: the log has `/object_boxes -> 1 boxes for the planner to avoid`.
+   **Send Goal**, tap the map: a green line runs from the robot to the tap,
+   shortens as the robot moves and is gone on arrival. Send another goal and
+   press **Cancel Goal**: the line disappears at once.
+3. **Live, floor clear:** start the robot stack with the linorobot-new
+   changes, open `?ros=ws://192.168.1.171:9090`.
+   Pass: the log has `/object_boxes -> N boxes ...`, and on the Jetson
+   `ros2 topic echo /object_boxes --once` shows `4 * N` numbers. Send a goal
+   on the far side of a boxed object: the green path goes around the box,
+   not through it, and updates about once a second as the robot drives.
+
+Verified 2026-11-11 in headless Chrome: steps 1 and 2 (box log line, green
+path drawn after a simulated goal tap). Step 3 is **not yet run on the robot**.

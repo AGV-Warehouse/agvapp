@@ -13,7 +13,9 @@ the full contract and phase status.
 - Mock mode: the original 10-robot fake fleet, point-to-point nav, manual pad, e-stop
 - Real mode: live occupancy-grid map + live robot pose marker, map actions,
   manual jog and E-Stop. The map fills most of the screen and colours walls
-  (dark) apart from objects (amber boxes), with sliders to tune the detection
+  (dark) apart from objects (amber boxes), with sliders to tune the detection.
+  The boxes are sent to the robot, which plans around them, and the planner's
+  current path is drawn in green
 - Tests: `node test/map.test.js` (no dependencies); manual checks in `TESTING.md`
 - Installable PWA metadata
 

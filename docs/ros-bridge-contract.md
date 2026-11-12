@@ -28,6 +28,8 @@ command UI can be built and tested with nothing on the network.
 | Nav goal | `/goal_pose` | `geometry_msgs/PoseStamped`, `frame_id: 'map'` | publish |
 | Initial pose | `/initialpose` | `geometry_msgs/PoseWithCovarianceStamped` | publish |
 | Cancel goal | `/navigate_to_pose/_action/cancel_goal` | `action_msgs/srv/CancelGoal` (empty request cancels all) | call service |
+| Planned path | `/plan` | `nav_msgs/Path` | subscribe, throttle 1000 ms |
+| Object boxes | `/object_boxes` | `std_msgs/Float32MultiArray`, flat `[xmin, ymin, xmax, ymax, ...]` map-frame meters | publish latched; needs linorobot-new's `object_boxes.py` |
 | Lidar overlay (optional) | `/scan` | `sensor_msgs/LaserScan` | subscribe, throttle ≥200 ms |
 
 There is no battery-percentage topic yet — the robot publishes `/motor_current`,
@@ -41,8 +43,8 @@ the lidar overlay is actually visible.
 ## Implementation status
 
 - **Phase 0 (swap seam)** — done. `bridge.js` defines the shared `Bridge`
-  interface (`onPose`, `onMap`, `onConnectionChange`, `sendGoal`, `setPose`,
-  `jog`, `stopJog`, `cancel`) and implements it twice: `createMockBridge()`
+  interface (`onPose`, `onMap`, `onPath`, `onConnectionChange`, `sendGoal`,
+  `setPose`, `publishBoxes`, `jog`, `stopJog`, `cancel`) and implements it twice: `createMockBridge()`
   (offline, self-contained) and `createRosBridge(url)` (real, via roslibjs).
 - **Phase 1 (read-only telemetry)** — done. `RosBridge` subscribes to
   `/amcl_pose` (200 ms throttle) and `/map` (once), and `app.js` renders the

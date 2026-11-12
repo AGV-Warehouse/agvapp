@@ -338,6 +338,8 @@ function initRealMode(bridge, sourceLabel) {
   let mapInfo = null;
   let baseImageData = null;
   let latestPose = null;
+  let plannedPath = []; // [{x, y}] world coords, latest /plan
+  let boxRects = null; // flat world rects of the detected objects, see publishBoxes()
   let connected = false;
   let armed = null; // "pose" | "goal" | null
   let drag = null; // { from:{x,y}, to:{x,y} } in world coords
@@ -345,6 +347,7 @@ function initRealMode(bridge, sourceLabel) {
   function redraw() {
     if (!mapInfo || !baseImageData) return;
     ctx.putImageData(baseImageData, 0, 0);
+    drawPath(ctx, mapInfo, pathAhead(plannedPath, latestPose));
     if (drag) {
       const yaw = dragYaw(drag);
       drawPoseMarker(ctx, mapInfo, { ...drag.from, yaw }, {
@@ -394,9 +397,25 @@ function initRealMode(bridge, sourceLabel) {
     redraw();
   });
 
+  bridge.onPath((path) => {
+    plannedPath = path;
+    redraw();
+  });
+
+  // The boxes drawn on the map are also what the robot plans around: the
+  // robot stamps them into its global costmap's map (object_boxes.py in
+  // linorobot2_navigation). Sent when /map arrives (always after the socket
+  // opens) and whenever the detection result changes.
+  function publishBoxes() {
+    if (!connected || !boxRects) return;
+    bridge.publishBoxes(boxRects);
+    logMessage(`/object_boxes -> ${boxRects.length / 4} boxes for the planner to avoid`);
+  }
+
   bridge.onMap((mapMsg) => {
     mapMsgCache = mapMsg;
     const result = paintMap();
+    publishBoxes();
     // Resolution arrives as a float32-widened double (0.02500000037252903),
     // so trim it before display.
     const res = +mapInfo.resolution.toFixed(4);
@@ -405,9 +424,11 @@ function initRealMode(bridge, sourceLabel) {
     );
   });
 
-  // --- walls vs objects (display only; see classifyMap in map.js) --------
-  // The sliders re-run the detection on the cached /map in the browser, so
-  // tuning costs the Jetson nothing. Settings are remembered per browser.
+  // --- walls vs objects (see classifyMap in map.js) -----------------------
+  // The sliders re-run the detection on the cached /map in the browser. The
+  // resulting boxes go to the robot when a slider is released (not while it
+  // is dragged: each send makes the Jetson rebuild its global costmap).
+  // Settings are remembered per browser.
   const DETECTION_STORAGE_KEY = "agv.mapDetection";
   const DETECTION_SLIDERS = [
     { key: "wallGap", label: "Join wall gaps up to", min: 0, max: 0.4, step: 0.025, unit: " m" },
@@ -448,6 +469,7 @@ function initRealMode(bridge, sourceLabel) {
     const result = classifyMap(mapMsgCache, detection);
     mapInfo = renderOccupancyGrid(els.mapCanvas, mapMsgCache, result.cellClass);
     drawObjectBoxes(ctx, mapInfo, result.boxes);
+    boxRects = boxesToWorldRects(mapInfo, result.boxes);
     // Cache the painted map so pose updates can restore it without re-walking
     // the whole occupancy array on every frame.
     baseImageData = ctx.getImageData(0, 0, els.mapCanvas.width, els.mapCanvas.height);
@@ -487,11 +509,20 @@ function initRealMode(bridge, sourceLabel) {
     }
   });
 
+  // "change" fires once, when the slider is released.
+  els.detectionControls.addEventListener("change", () => {
+    if (!mapMsgCache) return;
+    paintMap();
+    publishBoxes();
+  });
+
   els.detectionReset.addEventListener("click", () => {
     detection = { ...MAP_DETECTION_DEFAULTS };
     saveDetection();
     syncDetectionControls();
-    if (mapMsgCache) paintMap();
+    if (!mapMsgCache) return;
+    paintMap();
+    publishBoxes();
   });
 
   bridge.onPose((pose) => {
@@ -545,6 +576,7 @@ function initRealMode(bridge, sourceLabel) {
       // executing, the controller would immediately drive from the "new"
       // position on a stale path. Cancel first, always.
       bridge.cancel();
+      plannedPath = [];
       bridge.setPose(target.x, target.y, yaw);
       logMessage(`/initialpose -> ${target.x.toFixed(2)}, ${target.y.toFixed(2)} @ ${degrees}° (goals canceled)`);
     } else if (mode === "goal") {
@@ -564,6 +596,8 @@ function initRealMode(bridge, sourceLabel) {
   });
 
   els.cancelGoalButton.addEventListener("click", () => {
+    plannedPath = [];
+    redraw();
     bridge.cancel((result, error) => {
       if (error) logMessage(`cancel_goal FAILED: ${error}`);
       else logMessage(`cancel_goal ok (canceling ${(result.goals_canceling || []).length})`);
@@ -619,6 +653,8 @@ function initRealMode(bridge, sourceLabel) {
   els.estopReal.addEventListener("click", () => {
     bridge.stopJog();
     bridge.cancel();
+    plannedPath = [];
+    redraw();
     logMessage("E-STOP: zero /cmd_vel + cancel all goals");
   });
 

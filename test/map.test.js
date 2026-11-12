@@ -42,4 +42,15 @@ assert.ok(boxes.filter((b) => b.row0 <= 90 && b.row1 >= 90).length >= 3, "dot li
 // Every setting at its extremes still runs.
 classifyMap({ info: { resolution, width, height }, data }, { wallGap: 0, wallMinLength: 0.3, objectLink: 0, objectMaxSize: 0.3, objectMinDots: 1 });
 classifyMap({ info: { resolution, width, height }, data }, { wallGap: 0.4, wallMinLength: 4, objectLink: 1.2, objectMaxSize: 3, objectMinDots: 8 });
+// Boxes -> world rects: cell edges, not cell centres, and y is not flipped
+// (data row 0 is already the bottom of the map).
+const rects = boxesToWorldRects({ resolution: 0.5, originX: -1, originY: -2 }, [{ col0: 2, row0: 4, col1: 3, row1: 4 }]);
+assert.deepStrictEqual(rects, [0, 0, 1, 0.5]);
+
+// Path: only the part ahead of the robot, and nothing once it has arrived.
+const line = [0, 1, 2, 3].map((x) => ({ x, y: 0 }));
+assert.deepStrictEqual(pathAhead(line, { x: 1.1, y: 0.2 }), [{ x: 1.1, y: 0.2 }, { x: 2, y: 0 }, { x: 3, y: 0 }]);
+assert.deepStrictEqual(pathAhead(line, { x: 2.95, y: 0 }), [], "arrived");
+assert.deepStrictEqual(pathAhead([], { x: 0, y: 0 }), []);
+assert.strictEqual(pathAhead(line, null), line, "no pose yet: whole path");
 console.log("map.test.js: PASS");

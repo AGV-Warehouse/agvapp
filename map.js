@@ -207,7 +207,8 @@ function drawPoseMarker(ctx, mapInfo, pose, options) {
 //  4. An object made of at least objectMinDots parts gets a box. Anything
 //     smaller is drawn as a grey speck (usually noise or a lone post).
 // Settings are in meters so they mean the same at any map resolution.
-// Display only: navigation uses the raw map and is not affected.
+// Not display only: app.js sends the boxes to the robot (/object_boxes), which
+// plans around them. Walls and specks are in the robot's map already.
 const OCCUPIED_MIN = 65; // map_server occupied_thresh 0.65
 const CELL_NONE = 0;
 const CELL_WALL = 1;
@@ -379,5 +380,80 @@ function drawObjectBoxes(ctx, mapInfo, boxes) {
     ctx.fillRect(x, y, box.col1 - box.col0 + 1, box.row1 - box.row0 + 1);
     ctx.strokeRect(x, y, box.col1 - box.col0 + 1, box.row1 - box.row0 + 1);
   });
+  ctx.restore();
+}
+
+/**
+ * classifyMap() boxes as world rectangles, flat [xmin, ymin, xmax, ymax, ...]
+ * in map-frame meters. This is the /object_boxes payload the robot stamps into
+ * its planning map (linorobot2_navigation/scripts/object_boxes.py).
+ * @param {{resolution:number, originX:number, originY:number}} mapInfo
+ * @param {{col0:number, row0:number, col1:number, row1:number}[]} boxes
+ * @returns {number[]}
+ */
+function boxesToWorldRects(mapInfo, boxes) {
+  const { resolution, originX, originY } = mapInfo;
+  return boxes.flatMap((box) => [
+    originX + box.col0 * resolution,
+    originY + box.row0 * resolution,
+    originX + (box.col1 + 1) * resolution,
+    originY + (box.row1 + 1) * resolution,
+  ]);
+}
+
+// Below this much path left, the robot has arrived (Nav2 xy_goal_tolerance is
+// 0.10 m) and the line is not drawn. Nav2 stops publishing /plan on arrival
+// rather than sending an empty one, so the app has to decide this itself.
+const PATH_DONE_M = 0.15;
+
+/**
+ * The part of a planned path still ahead of the robot: from the path point
+ * nearest the robot to the end, starting at the robot itself.
+ * @param {{x:number, y:number}[]} path
+ * @param {{x:number, y:number}|null} pose
+ * @returns {{x:number, y:number}[]} empty when there is nothing left to drive
+ */
+function pathAhead(path, pose) {
+  if (!path || path.length < 2) return [];
+  if (!pose) return path;
+  let nearest = 0;
+  let best = Infinity;
+  path.forEach((p, i) => {
+    const d = Math.hypot(p.x - pose.x, p.y - pose.y);
+    if (d < best) {
+      best = d;
+      nearest = i;
+    }
+  });
+  const ahead = [{ x: pose.x, y: pose.y }, ...path.slice(nearest + 1)];
+  let length = 0;
+  for (let i = 1; i < ahead.length; i++) length += Math.hypot(ahead[i].x - ahead[i - 1].x, ahead[i].y - ahead[i - 1].y);
+  return length < PATH_DONE_M ? [] : ahead;
+}
+
+/**
+ * Draws a path (world coords) with a dot at its end, on a canvas prepared by
+ * renderOccupancyGrid.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {{resolution:number, width:number, height:number, originX:number, originY:number}} mapInfo
+ * @param {{x:number, y:number}[]} path
+ */
+function drawPath(ctx, mapInfo, path) {
+  if (path.length < 2) return;
+  const pixels = path.map((p) => worldToPixel(mapInfo, p.x, p.y));
+  const width = Math.max(1, 0.05 / mapInfo.resolution); // 5 cm line
+  ctx.save();
+  ctx.strokeStyle = "#16a34a";
+  ctx.fillStyle = "#16a34a";
+  ctx.lineWidth = width;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  pixels.forEach((p, i) => (i ? ctx.lineTo(p.px, p.py) : ctx.moveTo(p.px, p.py)));
+  ctx.stroke();
+  const end = pixels[pixels.length - 1];
+  ctx.beginPath();
+  ctx.arc(end.px, end.py, width * 1.6, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
