@@ -437,23 +437,94 @@ function pathAhead(path, pose) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {{resolution:number, width:number, height:number, originX:number, originY:number}} mapInfo
  * @param {{x:number, y:number}[]} path
+ * @param {{color?:string, dashed?:boolean}} [options]
  */
-function drawPath(ctx, mapInfo, path) {
+function drawPath(ctx, mapInfo, path, options) {
   if (path.length < 2) return;
+  const color = (options && options.color) || "#16a34a";
   const pixels = path.map((p) => worldToPixel(mapInfo, p.x, p.y));
   const width = Math.max(1, 0.05 / mapInfo.resolution); // 5 cm line
   ctx.save();
-  ctx.strokeStyle = "#16a34a";
-  ctx.fillStyle = "#16a34a";
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
   ctx.lineWidth = width;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
+  if (options && options.dashed) ctx.setLineDash([width * 3, width * 2.5]);
   ctx.beginPath();
   pixels.forEach((p, i) => (i ? ctx.lineTo(p.px, p.py) : ctx.moveTo(p.px, p.py)));
   ctx.stroke();
+  ctx.setLineDash([]);
   const end = pixels[pixels.length - 1];
   ctx.beginPath();
   ctx.arc(end.px, end.py, width * 1.6, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+}
+
+// --- Nav2 goal state -------------------------------------------------------
+// The green /plan line only exists while Nav2 HAS a path. When the planner
+// fails (robot mislocalized onto a wall, goal inside an object box, no route)
+// Nav2 publishes nothing, so without this the map shows no sign of what the
+// robot is trying to do. goalOverlay() decides what to draw instead.
+
+// action_msgs/GoalStatus codes on /navigate_to_pose/_action/status.
+const GOAL_STATUS = { ACCEPTED: 1, EXECUTING: 2, CANCELING: 3, SUCCEEDED: 4, CANCELED: 5, ABORTED: 6 };
+
+// The planner replans at 1 Hz while a goal is active. Three missed replans
+// means planning is failing, not just slow.
+const PLAN_STALE_MS = 3000;
+
+const OVERLAY_COLORS = {
+  plan: "#16a34a", // green: following a fresh path
+  stale: "#d97706", // amber: old path, replanning keeps failing
+  waiting: "#64748b", // grey: goal sent, first path not in yet
+  stuck: "#d97706", // amber: no path at all after PLAN_STALE_MS
+  failed: "#dc2626", // red: Nav2 aborted the goal
+};
+
+/**
+ * The newest goal in a GoalStatusArray's status_list (by accept stamp).
+ * @param {{goal_info:{goal_id:{uuid:number[]}, stamp:{sec:number, nanosec:number}}, status:number}[]} statusList
+ * @returns {{id:string, status:number}|null}
+ */
+function latestGoalStatus(statusList) {
+  let best = null;
+  (statusList || []).forEach((entry) => {
+    const stamp = entry.goal_info.stamp;
+    const t = stamp.sec + stamp.nanosec * 1e-9;
+    if (!best || t >= best.t) best = { t, id: Array.from(entry.goal_info.goal_id.uuid).join(","), status: entry.status };
+  });
+  return best && { id: best.id, status: best.status };
+}
+
+/**
+ * What to draw for the current goal, and a one-line explanation.
+ * @param {{x:number, y:number, failed?:boolean, sentAt:number, planAt:number|null}|null} goal
+ *   the goal this app sent (null: none, or it finished); times in ms
+ * @param {{x:number, y:number}[]} path latest /plan
+ * @param {{x:number, y:number}|null} pose
+ * @param {number} now ms, same clock as sentAt/planAt
+ * @returns {{line:{x:number, y:number}[], style:string|null, note:string}}
+ *   style is a key of OVERLAY_COLORS; "waiting", "stuck" and "failed" are a
+ *   straight robot-to-goal line (drawn dashed), since Nav2 has no path to show.
+ */
+function goalOverlay(goal, path, pose, now) {
+  const ahead = pathAhead(path, pose);
+  if (!goal) return { line: ahead, style: ahead.length ? "plan" : null, note: "" };
+  const straight = pose ? [{ x: pose.x, y: pose.y }, { x: goal.x, y: goal.y }] : [];
+  if (goal.failed) {
+    return { line: straight, style: "failed", note: "Nav2 gave up: no path to the goal. If the robot looks misplaced, Set Pose first." };
+  }
+  if (goal.planAt == null) {
+    const waited = Math.round((now - goal.sentAt) / 1000);
+    return now - goal.sentAt > PLAN_STALE_MS
+      ? { line: straight, style: "stuck", note: `No path after ${waited} s: the planner can't find a route. Is the robot's pose right?` }
+      : { line: straight, style: "waiting", note: "Planning a path..." };
+  }
+  if (!ahead.length) return { line: [], style: null, note: "Arriving..." };
+  const age = now - goal.planAt;
+  return age > PLAN_STALE_MS
+    ? { line: ahead, style: "stale", note: `Path is ${Math.round(age / 1000)} s old: replanning is failing. Robot may be blocked.` }
+    : { line: ahead, style: "plan", note: "Following the planned path." };
 }

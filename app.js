@@ -41,6 +41,7 @@ const els = {
   estopReal: document.querySelector("#estopReal"),
   jogPad: document.querySelector("#jogPad"),
   mapActionHint: document.querySelector("#mapActionHint"),
+  navStatus: document.querySelector("#navStatus"),
   fleetMode: document.querySelector("#fleetMode"),
   fromPoint: document.querySelector("#fromPoint"),
   headingValue: document.querySelector("#headingValue"),
@@ -339,6 +340,11 @@ function initRealMode(bridge, sourceLabel) {
   let baseImageData = null;
   let latestPose = null;
   let plannedPath = []; // [{x, y}] world coords, latest /plan
+  // The goal this app sent, until Nav2 finishes it. sentAt/planAt are
+  // Date.now() ms; id is Nav2's goal uuid once its status shows up.
+  let goal = null;
+  let lastGoalId = null; // newest goal uuid seen on the status topic
+  let lastOverlayStyle = null;
   let boxRects = null; // flat world rects of the detected objects, see publishBoxes()
   let connected = false;
   let armed = null; // "pose" | "goal" | null
@@ -347,7 +353,18 @@ function initRealMode(bridge, sourceLabel) {
   function redraw() {
     if (!mapInfo || !baseImageData) return;
     ctx.putImageData(baseImageData, 0, 0);
-    drawPath(ctx, mapInfo, pathAhead(plannedPath, latestPose));
+    const overlay = goalOverlay(goal, plannedPath, latestPose, Date.now());
+    if (overlay.style) {
+      const straight = ["waiting", "stuck", "failed"].includes(overlay.style);
+      drawPath(ctx, mapInfo, overlay.line, { color: OVERLAY_COLORS[overlay.style], dashed: straight });
+    }
+    if (goal) {
+      drawPoseMarker(ctx, mapInfo, goal, {
+        color: OVERLAY_COLORS[overlay.style] || OVERLAY_COLORS.plan,
+        radiusMeters: 0.1,
+      });
+    }
+    showOverlayNote(overlay);
     if (drag) {
       const yaw = dragYaw(drag);
       drawPoseMarker(ctx, mapInfo, { ...drag.from, yaw }, {
@@ -359,6 +376,21 @@ function initRealMode(bridge, sourceLabel) {
     if (latestPose) {
       drawPoseMarker(ctx, mapInfo, latestPose, connected ? undefined : { color: "#94a3b8" });
     }
+  }
+
+  // Status line + a log entry the first time a goal goes wrong.
+  function showOverlayNote(overlay) {
+    els.navStatus.textContent = overlay.note;
+    els.navStatus.className = `hint nav-status${overlay.style ? ` style-${overlay.style}` : ""}`;
+    if (overlay.style !== lastOverlayStyle && ["stuck", "stale", "failed"].includes(overlay.style)) {
+      logMessage(overlay.note);
+    }
+    lastOverlayStyle = overlay.style;
+  }
+
+  function clearGoal() {
+    goal = null;
+    plannedPath = [];
   }
 
   function dragYaw(current) {
@@ -399,8 +431,43 @@ function initRealMode(bridge, sourceLabel) {
 
   bridge.onPath((path) => {
     plannedPath = path;
+    if (goal && path.length > 1) goal.planAt = Date.now();
     redraw();
   });
+
+  bridge.onGoalStatus(({ id, status }) => {
+    lastGoalId = id;
+    if (!goal) return;
+    // The status list still carries the previous goal until Nav2 accepts the
+    // new one; adopt the first id that differs from the one seen at send time.
+    if (goal.id == null) {
+      if (id === goal.prevId) return;
+      goal.id = id;
+    }
+    if (id !== goal.id) return;
+    if (status === GOAL_STATUS.SUCCEEDED) {
+      logMessage("Nav2: goal reached");
+      clearGoal();
+    } else if (status === GOAL_STATUS.CANCELED) {
+      clearGoal();
+    } else if (status === GOAL_STATUS.ABORTED) {
+      goal.failed = true;
+      plannedPath = [];
+    }
+    redraw();
+  });
+
+  // The "No path after N s" / "path is N s old" notes need time to pass, not
+  // just new messages. Also: a robot whose status topic never arrives would
+  // otherwise sit on "Arriving..." forever.
+  setInterval(() => {
+    if (!goal) return;
+    const now = Date.now();
+    if (goal.planAt != null && !goal.failed && !pathAhead(plannedPath, latestPose).length && now - goal.planAt > 5000) {
+      clearGoal();
+    }
+    redraw();
+  }, 1000);
 
   // The boxes drawn on the map are also what the robot plans around: the
   // robot stamps them into its global costmap's map (object_boxes.py in
@@ -576,10 +643,12 @@ function initRealMode(bridge, sourceLabel) {
       // executing, the controller would immediately drive from the "new"
       // position on a stale path. Cancel first, always.
       bridge.cancel();
-      plannedPath = [];
+      clearGoal();
       bridge.setPose(target.x, target.y, yaw);
       logMessage(`/initialpose -> ${target.x.toFixed(2)}, ${target.y.toFixed(2)} @ ${degrees}° (goals canceled)`);
     } else if (mode === "goal") {
+      goal = { x: target.x, y: target.y, yaw, sentAt: Date.now(), planAt: null, failed: false, id: null, prevId: lastGoalId };
+      plannedPath = [];
       bridge.sendGoal(target.x, target.y, yaw);
       logMessage(`/goal_pose -> ${target.x.toFixed(2)}, ${target.y.toFixed(2)} @ ${degrees}°`);
     }
@@ -596,7 +665,7 @@ function initRealMode(bridge, sourceLabel) {
   });
 
   els.cancelGoalButton.addEventListener("click", () => {
-    plannedPath = [];
+    clearGoal();
     redraw();
     bridge.cancel((result, error) => {
       if (error) logMessage(`cancel_goal FAILED: ${error}`);
@@ -653,7 +722,7 @@ function initRealMode(bridge, sourceLabel) {
   els.estopReal.addEventListener("click", () => {
     bridge.stopJog();
     bridge.cancel();
-    plannedPath = [];
+    clearGoal();
     redraw();
     logMessage("E-STOP: zero /cmd_vel + cancel all goals");
   });

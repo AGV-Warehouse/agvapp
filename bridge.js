@@ -66,7 +66,11 @@ function createMockBridge() {
   const mapListeners = [];
   const pathListeners = [];
   const connectionListeners = [];
+  const statusListeners = [];
   const emitPath = (path) => pathListeners.forEach((cb) => cb(path));
+  let goalCount = 0;
+  let goalId = null;
+  const emitStatus = (status) => goalId && statusListeners.forEach((cb) => cb({ id: goalId, status }));
 
   // A plain 5m x 5m room with border walls, shaped like a real nav_msgs/OccupancyGrid.
   const resolution = 0.05;
@@ -98,6 +102,7 @@ function createMockBridge() {
 
   let pose = { x: 2.5, y: 2.5, yaw: 0 };
   let goalAnimation = null;
+  let failTimer = null;
   let jogTimer = null;
 
   function emitPose() {
@@ -108,6 +113,10 @@ function createMockBridge() {
     if (goalAnimation) {
       clearInterval(goalAnimation);
       goalAnimation = null;
+    }
+    if (failTimer) {
+      clearTimeout(failTimer);
+      failTimer = null;
     }
   }
 
@@ -129,9 +138,26 @@ function createMockBridge() {
     onPath(cb) {
       pathListeners.push(cb);
     },
+    onGoalStatus(cb) {
+      statusListeners.push(cb);
+    },
     publishBoxes() {}, // the mock robot drives straight lines; nothing to avoid with
     sendGoal(x, y, yaw) {
       stopGoalAnimation();
+      goalId = `mock-${++goalCount}`;
+      emitStatus(GOAL_STATUS.EXECUTING);
+      // A goal on a wall (or outside the room) has no path: like the real
+      // planner, publish no /plan, keep trying for a while, then abort.
+      const col = Math.floor(x / resolution);
+      const row = Math.floor(y / resolution);
+      const blocked = col < 0 || row < 0 || col >= width || row >= height || data[row * width + col] >= 65;
+      if (blocked) {
+        failTimer = setTimeout(() => {
+          failTimer = null;
+          emitStatus(GOAL_STATUS.ABORTED);
+        }, 6000);
+        return;
+      }
       const start = { ...pose };
       emitPath([{ x: start.x, y: start.y }, { x, y }]);
       const steps = 15;
@@ -141,7 +167,10 @@ function createMockBridge() {
         const t = step / steps;
         pose = { x: start.x + (x - start.x) * t, y: start.y + (y - start.y) * t, yaw };
         emitPose();
-        if (step >= steps) stopGoalAnimation();
+        if (step >= steps) {
+          stopGoalAnimation();
+          emitStatus(GOAL_STATUS.SUCCEEDED);
+        }
       }, 100);
     },
     setPose(x, y, yaw) {
@@ -167,9 +196,11 @@ function createMockBridge() {
         jogTimer = null;
       }
     },
-    cancel() {
+    cancel(callback) {
       stopGoalAnimation();
+      emitStatus(GOAL_STATUS.CANCELED);
       emitPath([]);
+      if (callback) callback({ goals_canceling: [] });
     },
   };
 }
@@ -183,6 +214,7 @@ function createRosBridge(url) {
   const poseListeners = [];
   const mapListeners = [];
   const pathListeners = [];
+  const statusListeners = [];
   const connectionListeners = [];
 
   ros.on("connection", () => connectionListeners.forEach((cb) => cb(true)));
@@ -217,6 +249,19 @@ function createRosBridge(url) {
   planTopic.subscribe((message) => {
     const path = message.poses.map((p) => ({ x: p.pose.position.x, y: p.pose.position.y }));
     pathListeners.forEach((cb) => cb(path));
+  });
+
+  // Nav2 goal state (executing / succeeded / aborted ...). Published only when
+  // a goal changes state, so it costs nearly nothing. This is how the app
+  // learns the planner gave up -- /plan just goes quiet in that case.
+  const goalStatusTopic = new ROSLIB.Topic({
+    ros,
+    name: "/navigate_to_pose/_action/status",
+    messageType: "action_msgs/GoalStatusArray",
+  });
+  goalStatusTopic.subscribe((message) => {
+    const latest = latestGoalStatus(message.status_list);
+    if (latest) statusListeners.forEach((cb) => cb(latest));
   });
 
   // --- publishers / services (Phase 2 + 3) --------------------------------
@@ -294,6 +339,9 @@ function createRosBridge(url) {
     },
     onPath(cb) {
       pathListeners.push(cb);
+    },
+    onGoalStatus(cb) {
+      statusListeners.push(cb);
     },
     publishBoxes(rects) {
       boxesTopic.publish(new ROSLIB.Message({ layout: { dim: [], data_offset: 0 }, data: rects }));

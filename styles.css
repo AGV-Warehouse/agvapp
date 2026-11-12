@@ -926,3 +926,12 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* One-line Nav2 goal state under the map controls (app.js goalOverlay). */
+.nav-status:empty { display: none; }
+.nav-status { font-weight: 600; }
+.nav-status.style-plan { color: #16a34a; }
+.nav-status.style-waiting { color: #64748b; }
+.nav-status.style-stale,
+.nav-status.style-stuck { color: #b45309; }
+.nav-status.style-failed { color: #dc2626; }

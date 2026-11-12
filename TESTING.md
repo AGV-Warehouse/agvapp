@@ -142,3 +142,50 @@ until navigation is restarted.
 
 Verified 2026-11-11 in headless Chrome: steps 1 and 2 (box log line, green
 path drawn after a simulated goal tap). Step 3 is **not yet run on the robot**.
+
+## 5. Goal marker and "why isn't it moving" line
+
+**What changed (2026-11-11):** the green `/plan` line only exists while Nav2
+*has* a path. On the robot today the planner failed every replan (AMCL had
+the robot on top of a wall) and the map showed nothing at all, just a robot
+that wouldn't move. Now, after **Send Goal**:
+
+- The goal is drawn as a small marker until Nav2 finishes it.
+- Until the first `/plan` arrives, a **dashed grey** straight line runs from
+  the robot to the goal ("Planning a path...").
+- No `/plan` within 3 s: the dashed line turns **amber**, "No path after N s:
+  the planner can't find a route. Is the robot's pose right?"
+- A path that stops updating for 3 s (replanning failing mid-drive) turns
+  **amber** and solid: "Path is N s old ...".
+- Nav2 aborts the goal (`/navigate_to_pose/_action/status` = 6): **red**
+  dashed line, "Nav2 gave up: no path to the goal ...". It stays until the
+  next goal, Cancel Goal, E-Stop or Set Pose.
+- Succeeded/canceled clears the marker and line.
+
+The amber/red notes are also written to the log once each. The decision
+logic is `goalOverlay()` in `map.js`; the goal state comes from the Nav2
+action status topic (see `docs/ros-bridge-contract.md`), which publishes only
+on state changes, so it costs the Jetson almost nothing. Goals sent from
+RViz or the :8000 map page still show their green path, but no marker.
+
+**Pass criteria and commands:**
+
+1. **Unit test:** `node test/map.test.js` prints `map.test.js: PASS` (adds
+   the waiting/stuck/failed/stale/plan/arriving cases and picking the newest
+   goal from a status list).
+2. **Offline:** open http://localhost:5173/?ros=mock.
+   - **Send Goal** on open floor: grey dashed line for an instant, then the
+     green path; marker and line disappear on arrival, log says
+     `Nav2: goal reached`.
+   - **Send Goal** onto a wall (e.g. the broken wall across the middle of the
+     mock room): grey dashed line, amber after 3 s, red "Nav2 gave up" after
+     6 s. **Cancel Goal** clears it.
+3. **Live, floor clear, robot correctly localized:** send a reachable goal:
+   green path, marker, then cleared on arrival. Send a goal inside an object
+   box (rejected by the planner): grey -> amber -> red within the BT's retry
+   time, and the robot does not drive off.
+
+Verified 2026-11-11 on the Jetson with Node 22 (no browser): step 1 passes,
+all scripts pass `node --check`, and the mock bridge emits executing ->
+path -> succeeded for an open-floor goal and executing -> aborted (no path)
+for a goal on a wall. **Not yet run in a browser or on the robot.**

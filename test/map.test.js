@@ -53,4 +53,29 @@ assert.deepStrictEqual(pathAhead(line, { x: 1.1, y: 0.2 }), [{ x: 1.1, y: 0.2 },
 assert.deepStrictEqual(pathAhead(line, { x: 2.95, y: 0 }), [], "arrived");
 assert.deepStrictEqual(pathAhead([], { x: 0, y: 0 }), []);
 assert.strictEqual(pathAhead(line, null), line, "no pose yet: whole path");
+// Goal overlay: what the map shows when Nav2 has no path to draw.
+const at0 = { x: 0, y: 0 };
+const g = (extra) => ({ x: 2, y: 0, sentAt: 0, planAt: null, failed: false, ...extra });
+const straightLine = [{ x: 0, y: 0 }, { x: 2, y: 0 }];
+assert.deepStrictEqual(goalOverlay(null, [], at0, 0), { line: [], style: null, note: "" }, "idle");
+assert.strictEqual(goalOverlay(null, line, { x: 1.1, y: 0.2 }, 0).style, "plan", "plan from RViz, no app goal");
+let o = goalOverlay(g(), [], at0, 1000);
+assert.strictEqual(o.style, "waiting");
+assert.deepStrictEqual(o.line, straightLine, "waiting: straight robot-to-goal line");
+o = goalOverlay(g(), [], at0, PLAN_STALE_MS + 2000);
+assert.strictEqual(o.style, "stuck", "no plan after PLAN_STALE_MS");
+assert.ok(/No path after 5 s/.test(o.note), o.note);
+o = goalOverlay(g({ failed: true }), line, at0, 0);
+assert.strictEqual(o.style, "failed");
+assert.deepStrictEqual(o.line, straightLine, "failed: straight line even if an old plan is cached");
+o = goalOverlay(g({ planAt: 1000 }), line, { x: 1.1, y: 0.2 }, 1500);
+assert.strictEqual(o.style, "plan");
+assert.strictEqual(o.line.length, 3, "fresh plan: the part ahead");
+assert.strictEqual(goalOverlay(g({ planAt: 1000 }), line, { x: 1.1, y: 0.2 }, 1000 + PLAN_STALE_MS + 1).style, "stale");
+assert.deepStrictEqual(goalOverlay(g({ planAt: 1000 }), line, { x: 2.95, y: 0 }, 1500), { line: [], style: null, note: "Arriving..." });
+
+const st = (uuid, sec, status) => ({ goal_info: { goal_id: { uuid }, stamp: { sec, nanosec: 0 } }, status });
+assert.strictEqual(latestGoalStatus([]), null);
+assert.deepStrictEqual(latestGoalStatus([st([1, 2], 10, 4), st([3, 4], 20, 6), st([5], 15, 2)]), { id: "3,4", status: 6 }, "newest by stamp");
+
 console.log("map.test.js: PASS");

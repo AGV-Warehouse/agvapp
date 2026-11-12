@@ -29,6 +29,7 @@ command UI can be built and tested with nothing on the network.
 | Initial pose | `/initialpose` | `geometry_msgs/PoseWithCovarianceStamped` | publish |
 | Cancel goal | `/navigate_to_pose/_action/cancel_goal` | `action_msgs/srv/CancelGoal` (empty request cancels all) | call service |
 | Planned path | `/plan` | `nav_msgs/Path` | subscribe, throttle 1000 ms |
+| Goal state | `/navigate_to_pose/_action/status` | `action_msgs/GoalStatusArray` (newest goal: 2 executing, 4 succeeded, 5 canceled, 6 aborted) | subscribe, unthrottled (only published on a state change) |
 | Object boxes | `/object_boxes` | `std_msgs/Float32MultiArray`, flat `[xmin, ymin, xmax, ymax, ...]` map-frame meters | publish latched; needs linorobot-new's `object_boxes.py` |
 | Lidar overlay (optional) | `/scan` | `sensor_msgs/LaserScan` | subscribe, throttle ≥200 ms |
 
