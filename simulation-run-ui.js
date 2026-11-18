@@ -15,7 +15,7 @@
   const vehicleOf=run=>run?.vehicleName||robotOf(run)||'车辆未知';
   function currentRuns(state){
     const releaseId=state.status?.activePublication?.status==='READY'&&state.status.activePublication.releaseId;
-    if(state.targetId!=='p0-pair'||!releaseId)return [];
+    if(!(state.capabilities||[]).includes('concurrent_vehicles')||!releaseId)return [];
     const byId=new Map([...state.runs,...state.observedRuns,...[state.run].filter(Boolean)].map(run=>[run.runId,run]));
     return [...byId.values()].filter(run=>run.releaseId===releaseId&&run.orderId&&!terminal(run));
   }
@@ -123,7 +123,7 @@
       if(!this.storage)try{this.storage=root.localStorage;}catch(_){/* Report storage failure below. */}
       this.key='fleet-sim-run.v1:'+this.scope;this.onChange=options.onChange||(()=>{});
       this.lock=options.lock || (fn=>root.navigator?.locks?.request?root.navigator.locks.request('fleet-sim-run:'+this.scope,fn):Promise.reject(Error('当前来源不支持跨页面请求锁，仅可查询。')));
-      this.viewRunId=null;this.state={run:null,runs:[],observedRuns:[],vehicles:[],targetId:null,status:null,layout:null,robotId:null,fresh:false,busy:false,error:'',notice:'',pending:null};
+      this.viewRunId=null;this.state={run:null,runs:[],observedRuns:[],vehicles:[],targetId:null,capabilities:[],status:null,layout:null,robotId:null,fresh:false,busy:false,error:'',notice:'',pending:null};
       try{this.state.pending=this.read();}catch(e){this.state.error=e.message;this.storageFailed=true;}
     }
     read(){const p=JSON.parse(this.storage.getItem(this.key)||'null');if(p&&(p.scope!==this.scope||!/^[-A-Za-z0-9_.:]{1,128}$/.test(p.runId)))throw Error('运行恢复索引无效，请保留记录并核对原运行。');return p;}
@@ -144,7 +144,7 @@
       this.requireRead();this.state.fresh=false;
       const [status,layout,catalog]=await Promise.all([this.api.request('sim-publishing/status'),this.api.request('layout'),this.api.request('sim-runs')]);
       if(!Array.isArray(catalog?.runs))throw Error('运行目录响应不完整，请重新读取；尚不能确认没有记录。');
-      this.state.status=status;this.state.layout=layout;this.state.runs=catalog.runs||[];this.state.targetId=catalog.targetId||'p0-sim';
+      this.state.status=status;this.state.layout=layout;this.state.runs=catalog.runs||[];this.state.targetId=catalog.targetId||'p0-sim';this.state.capabilities=Array.isArray(catalog.capabilities)?catalog.capabilities:[];
       this.state.occupancy=catalog.occupancy;
       this.state.vehicles=status.vehicles||catalog.vehicles||((catalog.robotIds||[catalog.robotId]).filter(Boolean).map(robotId=>({robotId,ready:!catalog.robotIds})));
       if(!this.state.vehicles.some(v=>v.robotId===this.state.robotId))this.state.robotId=this.state.vehicles[0]?.robotId||null;

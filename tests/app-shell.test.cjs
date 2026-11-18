@@ -62,7 +62,7 @@ function boot({hash='#/operations', pending=false, publishing=false, simulation=
       network.push({url,options});let value;
       if(url.endsWith('/map-background'))return new Promise(resolve=>{finishBackground=()=>resolve({ok:true,json:async()=>({available:false})});});
       if(guestFacts && url in guestFacts)value=guestFacts[url];
-      else if(url.endsWith('/capabilities'))value={environment:'SIM',targetId:guestFacts?'p0-pair':'p0-sim',profileId:'empty-crossing-v1',deploymentId:'real-deployment'};
+      else if(url.endsWith('/capabilities'))value={environment:'SIM',targetId:guestFacts?'p0-pair':'p0-sim',activeEnvironment:{kind:'SIM',capabilities:guestFacts?['managed_services']:[]},profileId:'empty-crossing-v1',deploymentId:'real-deployment'};
       else if(url.endsWith('/layout'))value={points:[{id:'ST-B',destination:'ST-B'}]};
       else if(url.endsWith('/robots'))value={upstreamOnline:true,robots:[{id:'R1',online:true}],orders:[]};
       else if(url.endsWith('/model'))value={name:'real-model',points:[],paths:[],stations:[{id:'ST-B'}]};

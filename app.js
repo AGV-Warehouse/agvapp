@@ -72,8 +72,12 @@ let background = null;
 let backgroundGeneration = 0;
 let guestBackgroundRetryAt = 0;
 let lastGuestOverview = false;
+// Feature gates follow the capabilities the gateway declares for the active environment.
+const environmentSupports = (capabilities, name) =>
+  Array.isArray(capabilities?.activeEnvironment?.capabilities) &&
+  capabilities.activeEnvironment.capabilities.includes(name);
 const guestOverview = () => !api.authorized && api.portalSessionURL?.() &&
-  api.capabilities?.environment === 'SIM' && api.capabilities.targetId === 'p0-pair' &&
+  api.capabilities?.environment === 'SIM' && environmentSupports(api.capabilities, 'managed_services') &&
   PortalState.route(location.hash) === 'operations' && !replayActive;
 const guestObservation = () => guestOverview() ? guestMonitor?.snapshot() || {guest: true} : null;
 const guestMapBackground = (state = guestObservation()) =>
@@ -1061,7 +1065,7 @@ function renderAccess() {
   $("clearAccess").hidden = !(api.authorized || api.portalRole || api.logoutPending);
   const capabilities = connectionCapabilities || api.capabilities;
   $("accessGuestObservation").hidden = api.authorized || !api.portalSessionURL?.() || capabilities?.environment !== "SIM" ||
-    !["p0-sim", "p0-pair"].includes(capabilities.targetId);
+    !capabilities.targetId;
   $("accessStatus").textContent = api.authorized
     ? receiptSnapshot.canWrite ? "操作员已登录，可在符合操作条件时提交请求。" : receiptSnapshot.writeBlockedReason || "已登录，当前仅可查询。"
     : api.portalRole === "automation" ? "当前使用自动化凭据。请使用操作员密钥登录。"

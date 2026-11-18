@@ -151,7 +151,7 @@
       if(!object(capabilities)) throw this.failure("部署能力响应无效","INVALID_CAPABILITIES");
       const id=capabilities.deploymentId;
       if(id!=null && !identifier(id)) throw this.failure("部署身份无效，保持只读","INVALID_DEPLOYMENT_ID");
-      if(capabilities.environment==="SIM" && ["p0-sim","p0-pair"].includes(capabilities.targetId) && !id) throw this.failure("隔离仿真尚未声明部署身份，保持只读","DEPLOYMENT_UNDECLARED");
+      if(capabilities.environment==="SIM" && capabilities.targetId && !id) throw this.failure("隔离仿真尚未声明部署身份，保持只读","DEPLOYMENT_UNDECLARED");
       const scope=id?this.apiBase+"#deployment="+encodeURIComponent(id):this.apiBase;
       if(scope!==this.scope && (this.inFlight.size || this.scopeBoundRequests || this.receiptOperations)) {this.deploymentConfirmed=false;this.authorized=false;this.emit();throw this.failure("请求进行中，不能更换部署范围","DEPLOYMENT_BUSY");}
       if(scope!==this.scope) {this.scope=scope;this.authorized=false;this.records=[];this.readOnlyResults.clear();}

@@ -33,7 +33,7 @@ function harness(options={}) {
     let value;
     if(path==='sim-publishing/status')value=status;
     else if(path==='layout')value={points:[{id:'ST-A',name:'Stage A',destination:'ST-A'}]};
-    else if(path==='sim-runs'&&!body)value={...(options.pair?{targetId:'p0-pair',robotIds:['lab-01','lab-02']}:{robotId:'lab-01'}),runs:[...server.values()].reverse(),occupancy:options.occupancy};
+    else if(path==='sim-runs'&&!body)value={...(options.pair?{targetId:'p0-pair',capabilities:['concurrent_vehicles'],robotIds:['lab-01','lab-02']}:{robotId:'lab-01'}),runs:[...server.values()].reverse(),occupancy:options.occupancy};
     else if(path==='sim-runs'&&body){
       value={...body,state:'ACCEPTED',receipt:receipt(body.command.requestId),orderId:'fleet-'+'a'.repeat(32),order:{state:'ACTIVE'},observation:{resources:{planned:null,allocated:null,claimed:null,executed:null},observedAt:new Date().toISOString()}};
       server.set(body.runId,value);if(options.lostResponse)throw Error('lost response');
@@ -312,7 +312,7 @@ test('authored-route recovery is replaced with the reviewed SIM reset workflow u
  const {mount}=require('../simulation-run-ui.js'),h=harness({pair:true}),container={innerHTML:'',querySelector(){return null;},querySelectorAll(){return [];},replaceChildren(){}};
  const original=global.setInterval;global.setInterval=()=>0;let view;try{view=mount(container,h.api,{storage:h.storage});}finally{global.setInterval=original;}t.after(()=>view.destroy());
  const run={runId:'authored-original',orderId:'fleet-original',robotId:'lab-01',releaseId:'original-release',sourceId:'original-worker',profileId:'scene-routes-pair-v1',vehicleName:'LAB-01',state:'ACCEPTED',order:{state:'FAILED'},completion:{settled:false}};
- Object.assign(view.controller.state,{run,targetId:'p0-pair'});view.render();
+ Object.assign(view.controller.state,{run,targetId:'p0-pair',capabilities:['concurrent_vehicles']});view.render();
  assert.doesNotMatch(container.innerHTML,/data-run-action="recovery-review"|data-run-action="finish-stopped"/);
  assert.match(container.innerHTML,/强制复位仿真.*审阅涉及的车辆和任务.*停止整个隔离仿真.*重新准备服务并发布原场景/);
  assert.match(container.innerHTML,/任务与失败记录会保留/);
