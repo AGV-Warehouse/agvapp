@@ -2472,3 +2472,22 @@ td .table-link {
 .portal-update-panel summary{cursor:pointer;font-weight:600}
 .portal-update-panel p{margin:8px 0}
 .portal-update-panel>div{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Simulation fault panel */
+.sim-fault-panel{margin-top:1rem;border-top:1px solid #d8e0e5;padding-top:1rem}
+.sim-fault-panel>summary{cursor:pointer;font-weight:650;padding:.5rem 0}
+.fault-robots{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:.75rem}
+.fault-robot{border:1px solid #d8e0e5;border-radius:12px;padding:.8rem;min-width:0}
+.fault-robot header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.4rem}
+.fault-robot h4{margin:0}
+.fault-actions,.fault-battery{display:flex;flex-wrap:wrap;align-items:end;gap:.5rem;margin-top:.6rem}
+.fault-battery label{display:grid;gap:.2rem}
+.fault-battery input{width:6rem}
+.fault-badge{display:inline-block;border-radius:999px;padding:.1rem .55rem;font-size:.85em;background:#eef2f4}
+.fault-stop{background:#fde2e1;color:#8c1d18}
+.fault-charge{background:#fff1d6;color:#7a4b00}
+.fault-ok{background:#e3f4e8;color:#1d5e33}
+.fault-waiting,.fault-unknown{background:#eef2f4;color:#4a5560}
+.fault-warning,.fault-error{color:#8c1d18}
+.fault-history{padding-left:1.2rem;overflow-wrap:anywhere}
+.fault-actions .button-danger{background:#b3261e;color:#fff;border-color:#b3261e}

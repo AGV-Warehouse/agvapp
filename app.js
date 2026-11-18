@@ -44,6 +44,8 @@ let loadingModel = false,
   scenarioScope = null,
   environmentView = null,
   environmentScope = null,
+  faultView = null,
+  faultScope = null,
   taskHistoryView = null,
   eventHistoryView = null,
   replayActive = false,
@@ -722,6 +724,7 @@ function liveWorkbenchVisible(route) {
 function syncObservationRoute(route) {
   const workbench = liveWorkbenchVisible(route);
   if (!workbench) environmentView?.setVisible(false);
+  faultView?.setVisible(workbench && $("simFaultPanel").open);
   overviewVideo?.setActive(route === 'operations' && !replayActive);
   overviewVideo?.refreshObservation();
   if (!!guestOverview() !== lastGuestOverview) renderMap();
@@ -823,6 +826,8 @@ const api = new FleetAPI(
       taskHistoryView?.authorizationChanged();
       eventHistoryView?.authorizationChanged();
       initializeEnvironment();
+      initializeFaults();
+      faultView?.refresh();
       initializeSceneHistory();
       sceneHistoryView?.authorizationChanged();
       initializeSceneLibrary();
@@ -866,6 +871,18 @@ function initializeEnvironment(){
   overviewVideo?.refreshObservation();
 }
 initializeEnvironment();
+// Per-robot SIM fault panel; polls only while its panel is open on the live workbench.
+function initializeFaults(){
+  if(!window.SimFaultUI||!receiptSnapshot.deploymentConfirmed||faultScope===receiptSnapshot.scope)return;
+  faultView?.destroy();faultScope=receiptSnapshot.scope;
+  const panel=$("simFaultPanel");
+  faultView=window.SimFaultUI.mount($("simFaultView"),api,{
+    initialVisible: panel.open&&liveWorkbenchVisible(PortalState.route(location.hash)),
+    onSupportChange(supported){panel.hidden=!supported;},
+  });
+}
+initializeFaults();
+$("simFaultPanel").addEventListener('toggle',()=>faultView?.setVisible($("simFaultPanel").open&&liveWorkbenchVisible(PortalState.route(location.hash))));
 function initializeSceneHistory(){
   if(!window.SceneHistoryUI||!receiptSnapshot.deploymentConfirmed||sceneHistoryView)return;
   sceneHistoryView=window.SceneHistoryUI.mount($("sceneHistoryView"),api,{previewSVG:window.SceneLibraryUI?.previewSVG,onReplay:openReplay,onTasks(target){setView('missions');taskHistoryView?.controller.submit({q:target.q});}});

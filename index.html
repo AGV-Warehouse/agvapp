@@ -236,6 +236,7 @@
             <div id="simulationDemoGrid" class="simulation-demo-grid">
             <section id="simulationViewerPanel" class="simulation-viewer-panel" hidden><div class="panel-heading"><h2>Gazebo 仿真直播</h2><span class="viewer-readonly">只读</span></div><p>执行或处理车辆任务请打开“单次任务与车辆处理”。</p><div id="simulationViewerHost" hidden></div></section>
             <details id="singleTaskPanel" class="single-task-panel" open><summary>单次任务与车辆处理</summary><button type="button" id="backToScenarioBoard">查看多车作业方案</button><div id="simulationRunView" tabindex="-1"><h2>单次任务 · 车辆操作</h2><p>等待连接身份确认。</p></div></details>
+            <details id="simFaultPanel" class="sim-fault-panel"><summary>故障注入 · 急停、安全区域、电量</summary><div id="simFaultView"></div></details>
             </div>
             <details id="scenarioAdvancedPanel" class="scenario-advanced"><summary>多车作业方案与历史记录</summary><div id="scenarioView" tabindex="-1"><h2>作业方案</h2><p>等待连接身份确认。</p></div></details>
             <div id="simulationReleaseSummary" class="release-summary" hidden></div>
@@ -776,6 +777,7 @@
     <script src="scenario-ui.js"></script>
     <script src="replay-ui.js"></script>
     <script src="src/pages/simulation/environment-ui.js"></script>
+    <script src="src/pages/simulation/fault-ui.js"></script>
     <script src="src/pages/simulation/overview-video.js"></script>
     <script src="src/pages/maps/scene-builder/workcell-model.js"></script>
     <script src="src/pages/maps/scene-library.js"></script>
