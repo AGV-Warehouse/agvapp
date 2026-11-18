@@ -9,7 +9,9 @@
   function validateForm(form,options){
     const steps=form.steps||[],max=options.limits?.maxSteps||8,robots=(options.robots||[]).map(r=>r.robotId),destinations=new Set((options.destinations||[]).map(d=>d.id));
     if(!form.name?.trim())throw Error('请填写方案名称。');
-    if(steps.length<2||steps.length>max||!robots.every(id=>steps.some(s=>s.robotId===id)))throw Error('方案需包含两车各至少一个任务，最多 '+max+' 个。');
+    // The legacy fixed pair needs a task for both robots; a drawn scene may use any of its robots.
+    const drawn=options.binding?.profileId==='scene-routes-pair-v1';
+    if(drawn?(steps.length<1||steps.length>max):(steps.length<2||steps.length>max||!robots.every(id=>steps.some(s=>s.robotId===id))))throw Error(drawn?'方案需至少一个任务，最多 '+max+' 个。':'方案需包含两车各至少一个任务，最多 '+max+' 个。');
     const predecessors=new Map(),previous=new Map();
     for(const step of steps){if(!robots.includes(step.robotId)||!destinations.has(step.destination))throw Error('请为每个任务选择当前车辆和目的站。');if(!Number.isInteger(step.delaySeconds)||step.delaySeconds<0||step.delaySeconds>(options.limits?.maxDelaySeconds||60))throw Error('等待秒数必须在允许范围内。');const deps=[...(step.dependsOn||[])];if(previous.has(step.robotId))deps.push(previous.get(step.robotId));previous.set(step.robotId,step.stepId);predecessors.set(step.stepId,deps);}
     const visiting=new Set(),done=new Set();function visit(id){if(done.has(id))return;if(visiting.has(id)||!predecessors.has(id))throw Error('任务先后顺序存在循环或未知任务，请重新选择。');visiting.add(id);for(const dep of predecessors.get(id))visit(dep);visiting.delete(id);done.add(id);}for(const id of predecessors.keys())visit(id);

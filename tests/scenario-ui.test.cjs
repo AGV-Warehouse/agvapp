@@ -265,3 +265,10 @@ test('late identity response visibly withdraws discard review while preserving a
  const notice=h.container.querySelector('[data-scene-discard-notice]');assert.equal(notice.hidden,false);assert.match(notice.textContent,/原放弃审阅已失效/);
  assert.match(h.view.updateBlocker(),/未保存/);
 });
+test('a drawn scene scenario may give tasks to only some of its robots',()=>{
+ const opts={robots:[{robotId:'a'},{robotId:'b'},{robotId:'c'}],destinations:[{id:'S-1'}],limits:{maxSteps:8,maxDelaySeconds:60},binding:{profileId:'scene-routes-pair-v1'}};
+ const one={name:'单车',steps:[{stepId:'one',robotId:'c',destination:'S-1',dependsOn:[],delaySeconds:0}]};
+ assert.doesNotThrow(()=>validateForm(one,opts));
+ assert.throws(()=>validateForm({...one,steps:[]},opts),/至少一个任务/);
+ assert.throws(()=>validateForm(one,{...opts,binding:{profileId:'empty-crossing-pair-v1'}}),/两车/);
+});

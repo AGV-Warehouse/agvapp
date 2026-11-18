@@ -18,3 +18,15 @@ test('terminal footprint bounds hit tests and site checks use the rotated physic
  assert.ok(W.outside(scene).some(x=>x.includes('立牌')));assert.equal(W.hitAt(scene,{x:.4,y:2},0).id,'s');assert.equal(W.hitAt(scene,{x:.4,y:2.2},0),null);assert.ok(Math.min(...W.bounds(scene).map(p=>p.x))<0);
  const svg=W.overlaySVG(scene,50);assert.match(svg,/width=".36" height=".42"/);assert.match(svg,/Tag 7/);assert.match(svg,/rotate\(-90\)/);
 });
+test('scenes may place any of the four pool robots and leave the rest out',()=>{
+ assert.deepEqual(N.vehicles,['LAB-01','LAB-02','LAB-03','LAB-04']);
+ let scene=N.addPoint(G.fresh(),{x:0,y:0});scene=N.addPoint(scene,{x:2,y:0});scene=N.addPoint(scene,{x:4,y:0});
+ scene=N.setSpawn(scene,{vehicleName:'LAB-03',pointId:'P-1'});scene=N.setSpawn(scene,{vehicleName:'LAB-04',pointId:'P-3'});
+ assert.deepEqual(scene.navigation.spawns.map(s=>s.vehicleName),['LAB-03','LAB-04']);
+ assert.match(N.summary(scene),/参与车辆 2\/4/);
+ scene=N.setSpawn(scene,{vehicleName:'LAB-03',pointId:''});
+ assert.deepEqual(scene.navigation.spawns.map(s=>s.vehicleName),['LAB-04']);
+ assert.throws(()=>N.setSpawn(scene,{vehicleName:'LAB-05',pointId:'P-1'}));
+ const bad=JSON.parse(JSON.stringify(scene));bad.navigation.points[0].id='LAB-03';
+ assert.ok(N.validate(bad).some(e=>/保留名称/.test(e)));
+});
