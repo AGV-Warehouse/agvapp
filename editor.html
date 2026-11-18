@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="portal-release" content="__PORTAL_RELEASE__" />
+    <script src="portal-update.js"></script>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#172337" />
+    <title>Fleetserver · 场地地图编辑器</title>
+    <link rel="icon" href="icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="./"
+        ><img src="icon.svg" width="34" height="34" alt="" /><span
+          >fleet<span class="brand-light">server</span
+          ><small>场地地图工作区</small></span
+        ></a
+      >
+      <div class="header-context">
+        <span class="context-divider">/</span><span>地图编辑器</span
+        ><span class="draft-label">仅编辑草稿</span>
+      </div>
+      <div class="header-right">
+        <a class="button button-quiet" href="./#/maps">返回场地与发布</a
+        ><button id="editorAccess" class="button">操作员登录</button>
+      </div>
+    </header>
+    <div class="editor-shell">
+      <aside id="objectSidebar" class="edit-sidebar">
+        <div class="edit-sidebar-heading">
+          <h2>工作区</h2>
+          <button
+            id="closeObjects"
+            class="button button-quiet"
+            aria-label="关闭对象列表"
+          >
+            ×
+          </button>
+        </div>
+        <label class="sidebar-select"
+          >已保存的草稿<select id="savedDrafts" aria-label="已保存的草稿">
+            <option value="">登录后加载草稿</option>
+          </select></label
+        >
+        <div class="sidebar-buttons">
+          <button id="newDraft" class="button">+ 新建草稿</button
+          ><button id="importBundleButton" class="button">打开地图包</button>
+        </div>
+        <input id="bundleFile" type="file" accept=".json" hidden />
+        <section class="objects-section">
+          <div class="sidebar-section-title">
+            <h2>地图对象</h2>
+            <span id="objectTotal">0 个对象</span>
+          </div>
+          <div id="objectTree"></div>
+        </section>
+        <div class="edit-sidebar-bottom">
+          <button id="importLive" class="button">
+            复制运行版本拓扑为草稿
+          </button>
+          <p>
+            复制点位、直线路线和关联单个点位的停车工位。通行区、
+            车辆和驱动属性需单独复核。
+          </p>
+        </div>
+      </aside>
+      <main class="editor-main">
+        <div class="editor-title-row">
+          <div>
+            <p class="eyebrow">场地地图工作区</p>
+            <h1 id="draftTitle">未命名场地</h1>
+            <p id="draftStatus">草稿未保存 · 未发布</p>
+          </div>
+          <div class="editor-actions">
+            <button id="showObjects" class="button">对象列表</button
+            ><button id="importRasterButton" class="button">
+              导入 ROS 地图</button
+            ><button id="validateDraft" class="button">检查草稿</button
+            ><button id="saveDraft" class="button button-primary">
+              保存草稿
+            </button>
+          </div>
+        </div>
+        <div class="editor-notice">
+          <span class="draft-status-dot"></span
+          ><span
+            >这里编辑的是草稿。修改不会更新 openTCS 内核运行版本，也不会向机器人
+            发送命令。</span
+          ><span class="editor-mode-tag">直线路线 · NOP 停车工位</span>
+        </div>
+        <div class="editor-grid">
+          <section class="editor-canvas-panel panel">
+            <div class="edit-toolbar" role="toolbar" aria-label="绘图工具">
+              <div class="drawing-tools">
+                <button
+                  data-tool="select"
+                  class="tool-button active"
+                  aria-pressed="true"
+                  title="选择与移动（V）"
+                >
+                  <span>↖</span>选择</button
+                ><button
+                  data-tool="point"
+                  class="tool-button"
+                  aria-pressed="false"
+                  title="添加点位（P）"
+                >
+                  <span>⊙</span>点位</button
+                ><button
+                  data-tool="path"
+                  class="tool-button"
+                  aria-pressed="false"
+                  title="连接点位（L）"
+                >
+                  <span>↗</span>路线</button
+                ><button
+                  data-tool="station"
+                  class="tool-button"
+                  aria-pressed="false"
+                  title="将停车工位关联到点位（S）"
+                >
+                  <span>▣</span>停车工位</button
+                ><button
+                  id="addBlock"
+                  class="tool-button"
+                  title="添加仅允许单车占用的通行区"
+                >
+                  <span>▱</span>通行区
+                </button>
+              </div>
+              <div class="history-tools">
+                <button
+                  id="undoEdit"
+                  title="撤销（Ctrl+Z）"
+                  aria-label="撤销"
+                  disabled
+                >
+                  ↶</button
+                ><button
+                  id="redoEdit"
+                  title="重做（Ctrl+Shift+Z）"
+                  aria-label="重做"
+                  disabled
+                >
+                  ↷</button
+                ><button
+                  id="deleteObject"
+                  title="删除选中对象"
+                  aria-label="删除选中对象"
+                  disabled
+                >
+                  ⌫
+                </button>
+              </div>
+            </div>
+            <div id="editorCanvas" class="editor-canvas">
+              <svg
+                id="editorSvg"
+                viewBox="-1 -8 12 9"
+                role="group"
+                aria-label="草稿地图画布"
+              >
+                <defs>
+                  <marker
+                    id="editorArrow"
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="5"
+                    markerHeight="5"
+                    orient="auto"
+                  >
+                    <path
+                      d="M0 1 9 5 0 9"
+                      fill="none"
+                      stroke="context-stroke"
+                      stroke-width="1.5"
+                    />
+                  </marker>
+                </defs>
+                <image
+                  id="rasterImage"
+                  x="0"
+                  y="0"
+                  preserveAspectRatio="none"
+                />
+                <g id="draftPaths"></g>
+                <g id="draftStations"></g>
+                <g id="draftPoints"></g>
+                <g id="draftOverlay"></g>
+              </svg>
+              <div id="canvasWelcome" class="canvas-welcome">
+                <span class="welcome-symbol">⌖</span>
+                <p class="eyebrow">从实际场地地图开始</p>
+                <h2>导入地图，绘制场地路线</h2>
+                <p>
+                  导入 ROS 原始 YAML 及其引用的 PGM 或 PNG 图片，再按实测坐标
+                  放置点位，连接经确认的路线。
+                </p>
+                <button id="welcomeImport" class="button button-primary">
+                  导入 ROS 地图</button
+                ><small
+                  >也可按世界坐标添加点位。</small
+                >
+              </div>
+              <div class="editor-zoom">
+                <button id="editorZoomIn" aria-label="放大">+</button
+                ><button id="editorZoomOut" aria-label="缩小">−</button
+                ><button id="editorFit" aria-label="适应地图范围">⌗</button>
+              </div>
+            </div>
+            <div class="editor-canvas-footer">
+              <span id="toolHint"
+                >选择对象；拖动空白处可平移画布。</span
+              ><span id="cursorPosition">X — · Y — m</span>
+            </div>
+          </section>
+          <aside class="edit-properties panel">
+            <div class="panel-heading">
+              <h2 id="propertyHeading">草稿属性</h2>
+              <span id="propertyKind" class="subtle-label">米</span>
+            </div>
+            <div id="propertyBody"></div>
+          </aside>
+          <section class="editor-results panel">
+            <div class="panel-heading">
+              <h2>检查与导出</h2>
+              <div class="export-actions">
+                <button id="saveBundle" class="button">下载地图包</button
+                ><button id="exportModel" class="button">
+                  导出 openTCS JSON
+                </button>
+              </div>
+            </div>
+            <div id="validationResults" class="validation-results">
+              <p>
+                检查草稿中的名称、引用、路线长度和
+                通行区成员。
+              </p>
+              <small
+                >防碰撞净空、车辆外廓、转弯和实地
+                调试需单独检查。</small
+              >
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <dialog id="editorAccessDialog" class="app-dialog">
+      <form id="editorAccessForm">
+        <div class="dialog-heading">
+          <div>
+            <h2>操作员登录</h2>
+          </div>
+          <button
+            type="button"
+            class="button icon-button button-quiet"
+            data-close-dialog
+            aria-label="关闭登录窗口"
+          >
+            ×
+          </button>
+        </div>
+        <p id="editorAccessStatus"></p>
+        <div id="editorCredentials"><label
+          >操作员密钥<input
+            id="editorKey"
+            type="password"
+            autocomplete="off"
+            required
+            placeholder="请输入操作员密钥"
+        /></label>
+        </div>
+        <p id="editorAccessError" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button id="endEditorSession" type="button" class="button" hidden>
+            退出登录</button
+          ><button id="editorLogin" type="submit" class="button button-primary">
+            登录
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="rasterDialog" class="app-dialog">
+      <form id="rasterForm">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">ROS 地图导入</p>
+            <h2>导入 ROS 地图</h2>
+          </div>
+          <button
+            type="button"
+            class="button icon-button button-quiet"
+            data-close-dialog
+            aria-label="关闭地图导入对话框"
+          >
+            ×
+          </button>
+        </div>
+        <p>
+          请选择 ROS map_saver 保存的文件。机器人查看器放大后的 PNG
+          或截图不能代替原始地图图片。
+        </p>
+        <label
+          >地图元数据（.yaml / .yml）<input
+            id="yamlFile"
+            type="file"
+            accept=".yaml,.yml"
+            required /></label
+        ><label
+          >YAML 引用的图片（.pgm / .png）<input
+            id="rasterFile"
+            type="file"
+            accept=".pgm,.png"
+            required
+        /></label>
+        <p class="fine-print">
+          图片最大 5 MiB、800 万栅格。保留分辨率、原点、偏航角和占据
+          元数据。服务器不会读取 YAML 路径指向的文件，
+          请同时选择对应图片。
+        </p>
+        <p id="rasterError" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <span class="fine-print">保存到草稿工作区</span
+          ><button
+            id="uploadRaster"
+            type="submit"
+            class="button button-primary"
+          >
+            导入地图
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <div id="editorToast" class="toast" role="status" hidden></div>
+    <script src="fleet-api.js"></script>
+    <script src="editor.js"></script>
+  </body>
+</html>

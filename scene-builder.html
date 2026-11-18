@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="portal-release" content="__PORTAL_RELEASE__"><script src="portal-update.js"></script>
+  <title>Fleetserver · 场景搭建</title><link rel="icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="src/pages/maps/scene-builder/styles.css">
+</head>
+<body class="scene-page">
+  <header class="app-header">
+    <a class="brand" href="./#/maps"><img src="icon.svg" width="34" height="34" alt=""><span>fleet<span class="brand-light">server</span><small>场地规划</small></span></a>
+    <div class="scene-header-context">地图与发布 <span>/</span> 场景搭建 <span class="scene-draft-badge">草稿</span></div>
+    <div class="header-right"><a class="button button-quiet" href="./#/maps">返回地图与发布</a><button id="sceneAccess" class="button">操作员登录</button></div>
+  </header>
+  <main class="scene-main">
+    <div class="scene-title-row"><div><p class="eyebrow">场地规划</p><h1 id="scenePageTitle">场景搭建</h1><p id="scenePageDescription">导入厂房底图，或从空白画布搭建场地。</p></div>
+      <div class="scene-document-actions"><button id="sceneNew" class="button">新建场景</button><button id="sceneOpen" class="button">打开场景</button><button id="sceneSave" class="button button-primary">保存场景</button></div>
+    </div>
+    <div class="scene-document-bar"><label>场景名称<input id="sceneName" maxlength="80" value="新场景" autocomplete="off"></label><span id="sceneSaveState" role="status">尚未保存</span><span class="scene-stage-note">草稿编辑与运行版本分开保存</span></div>
+    <div class="scene-mode-tabs" role="tablist" aria-label="场景准备步骤"><button id="sceneDesignTab" role="tab" aria-selected="true" aria-controls="sceneDesignPanel">1 · 搭建场景</button><button id="sceneRoutesTab" role="tab" aria-selected="false" aria-controls="sceneDesignPanel">2 · 规划路线</button><button id="sceneGenerationTab" role="tab" aria-selected="false" aria-controls="sceneGenerationPanel">3 · 生成与仿真</button></div>
+    <details id="sceneExampleGuide" class="scene-floorplan-panel" hidden open><summary>示例练习 · 从这里开始</summary><div style="padding:1rem"><p>这是独立练习副本。保存状态见上方；编辑和保存都不会自动控制车辆。蓝线是规划路线；高桌和橙色立牌在“规划路线”中查看。</p><ol><li>搭建场景：点选“刻印设备示意”，修改宽度或位置，点击“应用修改”。</li><li>规划路线：点选“高桌工位”，查看桌底净高、立牌朝向及标识编号。</li><li>保存场景：连接当前服务器草稿库并保存；记住名称，稍后从“打开场景”重开。</li></ol><p>保存后，从同一门户的“虚拟实验”准备仿真服务，再回来生成并发布。保存不等于发布，不会自动启动仿真。Tag 识别、按钮和顶升尚未接入。</p><a href="example.html">查看完整练习说明</a></div></details><div id="sceneMessage" class="scene-message" role="status" hidden></div>
+    <div id="sceneDesignPanel" role="tabpanel" aria-labelledby="sceneDesignTab">
+      <details id="sceneFloorplanPanel" class="scene-floorplan-panel">
+        <summary><span id="sceneFloorplanLabel">导入厂房底图</span><small id="sceneFloorplanSummary">PNG / JPG · 两点校准</small></summary>
+        <div id="sceneFloorplanView"></div>
+      </details>
+      <div class="scene-grid">
+      <aside class="scene-library" aria-label="绘制工具与预设件"><div id="sceneGeometryLibrary">
+        <h2>绘制</h2><div class="scene-tools">
+          <button data-scene-tool="select" aria-pressed="true"><span aria-hidden="true">↖</span>选择 / 移动</button>
+          <button data-scene-tool="site" aria-pressed="false"><span aria-hidden="true">▱</span>画场地</button>
+          <button data-scene-tool="wall" aria-pressed="false"><span aria-hidden="true">╱</span>拉墙</button>
+        </div>
+        <h2>预设障碍</h2><p class="scene-library-hint">选一种，在画布上放置</p>
+        <div class="scene-presets">
+          <button data-scene-tool="equipment-box-v1" aria-pressed="false"><span class="scene-asset-icon equipment" aria-hidden="true">▣</span><span>设备箱体<small>1.2 × 0.8 × 1.5 m</small></span></button>
+          <button data-scene-tool="rect-column-v1" aria-pressed="false"><span class="scene-asset-icon column" aria-hidden="true">■</span><span>立柱<small>0.4 × 0.4 × 3 m</small></span></button>
+          <button data-scene-tool="bumper-v1" aria-pressed="false"><span class="scene-asset-icon bumper" aria-hidden="true">▬</span><span>防撞挡块<small>1.5 × 0.15 × 0.15 m</small></span></button>
+        </div>
+        <details class="scene-object-details" open><summary>场景对象 <span id="sceneObjectCount">0</span></summary><div id="sceneObjects" class="scene-object-list"><p>画布还是空的</p></div></details></div><div id="sceneRouteLibrary" hidden><h2>路网工具</h2><div class="scene-tools"><button data-route-tool="network-select" aria-pressed="true">↖ 选择 / 编辑</button><button data-route-tool="network-point" aria-pressed="false">＋ 放点位</button><button data-route-tool="network-path" aria-pressed="false">↗ 连路线</button><button data-route-tool="network-station" aria-pressed="false">▣ 放停车工位</button></div><p class="scene-library-hint">先放点，再连线，最后在点位上放停车工位。</p><div class="route-policy-note"><strong>共享路网串行通行</strong><p>当前所有路线共用通行资源。停车位和车辆起点放在支路末端，只连接一个通行点；生成时检查停车避让与车体净空。</p></div><p id="sceneRouteSummary"></p><p id="sceneWorkcellLegend" class="scene-library-hint" hidden>虚线框为规划工位，橙色标记为独立立牌。</p></div>
+      </aside>
+      <section class="scene-canvas-panel" aria-label="场地俯视画布">
+        <div class="scene-canvas-toolbar"><div><button id="sceneUndo" class="button button-quiet" aria-label="撤销" disabled>↶</button><button id="sceneRedo" class="button button-quiet" aria-label="重做" disabled>↷</button></div><span>俯视 · 米 · 吸附 0.1 m</span><div><button id="sceneZoomOut" class="button button-quiet" aria-label="缩小">−</button><button id="sceneFit" class="button button-quiet">显示全部</button><button id="sceneZoomIn" class="button button-quiet" aria-label="放大">＋</button></div></div>
+        <div class="scene-canvas-wrap"><svg id="sceneCanvas" xmlns="http://www.w3.org/2000/svg" tabindex="0" role="application" aria-label="场景画布" aria-describedby="sceneCanvasHelp"></svg><div id="sceneWelcome" class="scene-canvas-welcome"><strong>从一块空场地开始</strong><p>画一个矩形，或先输入场地尺寸。</p><button id="sceneStartSize" class="button button-primary">按尺寸建立场地</button></div></div>
+        <div class="scene-canvas-footer"><span id="sceneToolHint">选择对象，拖动可调整位置。</span><span id="sceneCanvasHelp">方向键定位 · Shift 快移 · Enter 确定 · Esc 取消</span></div>
+      </section>
+      <aside class="scene-inspector" aria-label="对象属性"><div id="sceneInspector"></div><div id="sceneWorkcellInspector"></div><div id="sceneNetworkInspector" hidden></div></aside>
+    </div>
+    <section class="scene-review" aria-label="场景检查"><strong>场景检查</strong><span id="sceneReview">尚未建立场地。</span><button id="sceneCheckClearance" type="button" class="button">检查画布净空</button><div id="sceneClearanceView"></div></section></div>
+    <section id="sceneGenerationPanel" role="tabpanel" aria-labelledby="sceneGenerationTab" hidden><button id="sceneLocateClearance" type="button" class="button" hidden>在画布检查净空</button><div id="sceneGenerationView"></div><div id="scenePublicationView"></div></section>
+  </main>
+  <dialog id="sceneAccessDialog">
+    <form id="sceneAccessForm">
+      <div class="scene-dialog-heading">
+        <h2>操作员登录</h2>
+        <button type="button" data-close-dialog aria-label="关闭登录窗口">×</button>
+      </div>
+      <p id="sceneAccessStatus"></p>
+      <div id="sceneCredentials"><label>操作员密钥<input id="sceneKey" type="password" autocomplete="off" required></label></div>
+      <p id="sceneAccessError" class="scene-error" role="alert" hidden></p>
+      <div class="scene-dialog-actions">
+        <button type="button" id="sceneEndAccess" class="button" hidden>退出登录</button>
+        <button id="sceneLogin" class="button button-primary" type="submit">登录</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="sceneOpenDialog"><div class="scene-dialog-heading"><h2>打开已保存场景</h2><button type="button" data-close-dialog aria-label="关闭场景列表">×</button></div><div id="sceneCatalog"></div></dialog>
+  <dialog id="sceneDiscardDialog"><div class="scene-dialog-heading"><h2>当前修改尚未保存</h2></div><p>可以返回保存，或明确放弃本页修改。</p><div class="scene-dialog-actions"><button id="sceneKeepEditing" class="button">返回编辑</button><button id="sceneDiscard" class="button">放弃修改并继续</button></div></dialog>
+  <script src="src/pages/maps/scene-builder/clearance-ui.js"></script>
+  <script src="fleet-api.js"></script><script src="motion-preset-ui.js"></script><script src="map-release-ui.js"></script><script src="src/pages/maps/scene-builder/workcell-model.js"></script><script src="src/pages/maps/scene-builder/network-model.js"></script><script src="src/pages/maps/scene-builder/network-ui.js"></script><script src="src/pages/maps/scene-builder/floorplan-geometry.js"></script><script src="src/pages/maps/scene-builder/model.js"></script><script src="src/pages/maps/scene-builder/canvas.js"></script><script src="src/pages/maps/scene-builder/controller.js"></script><script src="src/pages/maps/scene-builder/generation-ui.js"></script><script src="src/pages/maps/scene-builder/publication-ui.js"></script><script src="src/pages/maps/scene-builder/floorplan-ui.js"></script><script src="src/pages/maps/scene-builder/floorplan-layer.js"></script><script src="src/pages/maps/scene-builder/workcell-ui.js"></script><script src="src/pages/maps/scene-builder/example.js"></script><script src="src/pages/maps/scene-builder/workspace.js"></script>
+</body>
+</html>

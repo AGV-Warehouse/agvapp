@@ -1,0 +1,17 @@
+{
+  "checkedAtUtc": "2026-11-08T23:33:18.066926+00:00",
+  "scope": "loopback P0-1 fixture counters only; not production or robot execution",
+  "origin": "http://127.0.0.1:55231",
+  "scenario": "unknown",
+  "generation": 1,
+  "upstreamRequests": 0,
+  "commandPostCount": 1,
+  "commandPostsByRequestId": {
+    "7adaf090838c24a68589d2fd35abc18c": 1
+  },
+  "requestIds": [
+    "fixture-unknown",
+    "7adaf090838c24a68589d2fd35abc18c"
+  ],
+  "passed": true
+}

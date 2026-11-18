@@ -1,0 +1,7 @@
+# Local Python test caches; keep reviewed QA evidence and historical outputs.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+artifacts/
+.test-output/
+node_modules/

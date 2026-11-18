@@ -1,7 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <meta name="portal-release" content="__PORTAL_RELEASE__" />
+    <script src="portal-update.js"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#172337" />
     <title>Fleetserver · Operations</title>
@@ -88,8 +90,8 @@
       >
       <div class="header-context">
         <span class="context-divider">/</span
-        ><span id="headerView">Overview</span
-        ><span class="environment-label">Live environment</span>
+        ><span id="headerView">运行总览</span
+        ><span class="environment-label">连接来源未声明</span>
       </div>
       <div class="header-right">
         <div id="connectionPill" class="connection-pill" role="status">
@@ -98,38 +100,46 @@
         <span class="header-divider"></span
         ><button id="accessButton" class="button button-quiet">
           <svg class="icon"><use href="#i-lock" /></svg
-          ><span id="accessLabel">Control access</span>
+          ><span id="accessLabel">操作员登录</span>
         </button>
       </div>
     </header>
     <div class="app-layout">
       <aside class="sidebar" aria-label="Fleet navigation">
         <p class="sidebar-label">WORKSPACE</p>
-        <nav class="primary-nav" aria-label="Workspace views">
+        <nav class="primary-nav" aria-label="主工作区">
           <button
             class="nav-item active"
-            data-view="overview"
+            data-view="operations"
             aria-current="page"
             title="Overview"
           >
-            <svg class="icon"><use href="#i-map" /></svg><span>Overview</span>
+            <svg class="icon"><use href="#i-map" /></svg><span>运行总览</span>
           </button>
-          <button class="nav-item" data-view="vehicles" title="Vehicles">
-            <svg class="icon"><use href="#i-robot" /></svg><span>Vehicles</span
+          <button class="nav-item" data-view="missions" title="搬运任务">
+            <svg class="icon"><use href="#i-orders" /></svg
+            ><span>搬运任务</span><b id="orderNavCount">0</b>
+          </button>
+          <button class="nav-item" data-view="maps" title="地图与发布"
+            ><svg class="icon"><use href="#i-node" /></svg
+            ><span>地图与发布</span></button
+          >
+          <button class="nav-item" data-view="fleet" title="车辆与连接">
+            <svg class="icon"><use href="#i-robot" /></svg><span>车辆与连接</span
             ><b id="vehicleNavCount">0</b>
           </button>
-          <button class="nav-item" data-view="orders" title="Transport orders">
-            <svg class="icon"><use href="#i-orders" /></svg
-            ><span>Transport orders</span><b id="orderNavCount">0</b>
-          </button>
-          <button class="nav-item" data-view="activity" title="Activity">
+          <button class="nav-item" data-view="simulation" title="虚拟实验"
+            ><svg class="icon"><use href="#i-robot" /></svg
+            ><span>虚拟实验</span></button
+          >
+          <button class="nav-item" data-view="events" title="事件与对账">
             <svg class="icon"><use href="#i-activity" /></svg
-            ><span>Activity</span>
+            ><span>事件与对账</span>
           </button>
         </nav>
-        <section class="sidebar-fleet">
+        <section id="sidebarFleet" class="sidebar-fleet">
           <div class="sidebar-section-title">
-            <h2>VEHICLES</h2>
+            <h2>车辆</h2>
             <span id="fleetMode">0 reported</span>
           </div>
           <label class="search-field"
@@ -137,8 +147,8 @@
             ><input
               id="robotSearch"
               type="search"
-              placeholder="Find a vehicle"
-              aria-label="Find a vehicle"
+              placeholder="搜索车辆"
+              aria-label="搜索车辆"
               autocomplete="off"
           /></label>
           <div
@@ -147,9 +157,9 @@
             aria-label="Vehicle list"
           ></div>
         </section>
-        <section class="model-tree">
+        <section id="sidebarModelTree" class="model-tree">
           <div class="sidebar-section-title">
-            <h2>PLANT MODEL</h2>
+            <h2>运行模型</h2>
             <span>openTCS</span>
           </div>
           <button class="tree-row" data-map-focus="points">
@@ -180,7 +190,7 @@
               Your fleet, routes and transport orders in one workspace.
             </p>
           </div>
-          <div class="workspace-actions">
+          <div id="liveWorkspaceActions" class="workspace-actions">
             <button
               id="estopButton"
               class="button button-pause"
@@ -188,42 +198,73 @@
               title="Request an operational pause; this is not an emergency stop"
             >
               <svg class="icon"><use href="#i-pause" /></svg
-              ><span>Pause fleet</span></button
+              ><span>全车运营暂停</span></button
             ><button
               id="resumeButton"
               class="button icon-button"
               disabled
               title="Request fleet resume"
-              aria-label="Resume fleet"
+              aria-label="全车恢复"
             >
               <svg class="icon"><use href="#i-play" /></svg></button
             ><button id="newOrderButton" class="button button-primary" disabled>
               <svg class="icon"><use href="#i-plus" /></svg
-              ><span>New order</span>
+              ><span>新导航任务</span>
             </button>
           </div>
         </div>
+        <details class="context-disclosure"><summary>连接与版本依据</summary><section id="portalContext" class="portal-context" aria-label="连接与版本上下文">
+          <span id="portalOriginState">来源：连接来源未声明 · 当前不提供 REAL / SIM 切换</span>
+          <span id="portalModelState">模型：等待读取</span>
+          <span id="portalSourceAge">openTCS 快照年龄：未知</span>
+          <span id="portalSessionState">控制会话：只读</span>
+        </section>
+        </details>
+        <p id="replayContextNote" class="release-notice" hidden>历史只读 · 当前运行在此视图暂停更新，返回后重新核对。</p>
+        <section id="attentionPanel" class="panel attention-panel" aria-labelledby="attentionTitle">
+          <h2 id="attentionTitle">需处理</h2>
+          <ul id="attentionList" aria-live="polite"><li>等待服务状态与请求账本。</li></ul>
+        </section>
+        <section id="mapsWorkspace" class="panel portal-workspace" hidden aria-label="地图与发布">
+          <div id="sceneLibraryView"><div class="scene-builder-entry"><div><h2>我的场景</h2><p>打开已保存的场地继续规划，或从空场地开始。</p></div><a class="button button-primary" href="scene-builder.html">新建场景</a></div></div>
+          <details id="sceneHistoryPanel" class="scene-history-panel"><summary>场景档案 · 修订、版本与运行</summary><div id="sceneHistoryView"></div></details>
+          <details class="advanced-publishing"><summary>高级地图草稿、发布与历史</summary><div id="mapReleaseView"><h2>地图草稿工作区</h2><p>发布服务尚未读取。</p><a class="button" href="editor.html">打开地图编辑器</a></div></details>
+        </section>
+        <section id="simulationWorkspace" class="panel portal-workspace" hidden aria-label="虚拟实验">
+          <div id="simulationEnvironmentView"></div>
+          <div id="simulationLiveBoard">
+            <div id="simulationDemoGrid" class="simulation-demo-grid">
+            <section id="simulationViewerPanel" class="simulation-viewer-panel" hidden><div class="panel-heading"><h2>Gazebo 仿真直播</h2><span class="viewer-readonly">只读</span></div><p>执行或处理车辆任务请打开“单次任务与车辆处理”。</p><div id="simulationViewerHost" hidden></div></section>
+            <details id="singleTaskPanel" class="single-task-panel" open><summary>单次任务与车辆处理</summary><button type="button" id="backToScenarioBoard">查看多车作业方案</button><div id="simulationRunView" tabindex="-1"><h2>单次任务 · 车辆操作</h2><p>等待连接身份确认。</p></div></details>
+            </div>
+            <details id="scenarioAdvancedPanel" class="scenario-advanced"><summary>多车作业方案与历史记录</summary><div id="scenarioView" tabindex="-1"><h2>作业方案</h2><p>等待连接身份确认。</p></div></details>
+            <div id="simulationReleaseSummary" class="release-summary" hidden></div>
+          </div>
+          <div id="replayView" class="replay-view" role="region" aria-label="历史运行复盘，只读" hidden></div>
+          <details><summary>其他实验服务</summary><p>Digital Twin 提供独立 Nav2 演示。</p><a class="button" href="/twin/">进入 Digital Twin 独立实验</a></details>
+        </section>
+        <section id="rtsWorkspace" class="panel portal-workspace" aria-label="RTS 资源观察"><div id="rtsRunView"><h2>当前作业</h2><p>操作员登录后可查看任务详情。</p></div></section>
         <section class="fleet-summary" aria-label="Fleet summary">
           <div>
             <span class="metric-label"
-              ><i class="metric-dot blue"></i>Total vehicles</span
-            ><strong id="totalCount">0</strong><small>reported by kernel</small>
+              ><i class="metric-dot blue"></i>报告车辆</span
+            ><strong id="totalCount">0</strong><small>内核报告，非准入证明</small>
           </div>
           <div>
             <span class="metric-label"
-              ><i class="metric-dot green"></i>Online</span
+              ><i class="metric-dot green"></i>报告在线</span
             ><strong id="onlineCount">0</strong
-            ><small>with current feedback</small>
+            ><small>依当前接口反馈</small>
           </div>
           <div>
             <span class="metric-label"
-              ><i class="metric-dot violet"></i>Executing</span
+              ><i class="metric-dot violet"></i>执行中</span
             ><strong id="movingCount">0</strong
-            ><small>active vehicle tasks</small>
+            ><small>订单执行不等于正在移动</small>
           </div>
           <div>
             <span class="metric-label"
-              ><i class="metric-dot amber"></i>Needs attention</span
+              ><i class="metric-dot amber"></i>需检查车辆</span
             ><strong id="alertsCount">0</strong
             ><small id="attentionCaption">no reported issues</small>
           </div>
@@ -237,7 +278,7 @@
             <div class="panel-heading">
               <div class="panel-title">
                 <svg class="icon"><use href="#i-map" /></svg>
-                <h2>Plant overview</h2>
+                <h2>运行地图</h2>
                 <span id="modelName" class="subtle-label">Loading model</span>
               </div>
               <div class="map-toolbar">
@@ -282,7 +323,7 @@
                         type="checkbox"
                         data-layer="robots"
                         checked
-                      />Vehicles</label
+                      />车辆</label
                     ><label
                       ><input
                         type="checkbox"
@@ -294,7 +335,34 @@
                 </details>
               </div>
             </div>
+            <div id="overviewModes" class="overview-modes" role="group" aria-label="运行地图显示模式">
+              <button type="button" data-overview-mode="map" aria-pressed="true">二维车辆动态</button>
+              <button type="button" data-overview-mode="side" aria-pressed="false">地图旁直播</button>
+              <button type="button" data-overview-mode="overlay" aria-pressed="false">地图配准叠图</button>
+            </div>
+            <div id="overviewObservation" class="overview-observation" hidden>
+              <div class="overview-observation-controls">
+                <p id="overviewVideoStatus" role="status"></p>
+                <button type="button" class="button" id="overviewViewerAccess" hidden>操作员登录</button>
+                <button type="button" class="button" id="overviewViewerOpen" hidden>打开直播</button>
+                <button type="button" class="button" id="overviewViewerReview" hidden>关闭直播</button>
+                <button type="button" class="button" id="overviewViewerRefresh" hidden>刷新状态</button>
+                <a class="button" href="#/simulation" id="overviewViewerPrepare" hidden>前往仿真工作台</a>
+              </div>
+              <div id="overviewViewerStopReview" class="sim-environment-review" hidden>
+                <strong>审阅关闭直播</strong>
+                <p id="overviewViewerStopContext"></p>
+                <p>关闭当前观察器会释放画面资源。仿真与任务会继续运行。</p>
+                <button type="button" class="button" id="overviewViewerStop">确认关闭直播</button>
+                <button type="button" class="button" id="overviewViewerBack">返回</button>
+              </div>
+            </div>
+            <div id="overviewMapLayout" class="overview-map-layout" data-mode="map">
             <div id="warehouseMap" class="warehouse-map">
+              <svg id="mapBackgroundSvg" class="map-svg map-background-svg" viewBox="-300 -200 600 400" aria-hidden="true">
+                <image id="mapBackground" x="0" y="0" preserveAspectRatio="none" opacity="0.7"></image>
+              </svg>
+              <div id="overviewOverlayHost" class="overview-overlay-host" aria-hidden="true" hidden></div>
               <svg
                 id="mapSvg"
                 class="map-svg"
@@ -323,8 +391,14 @@
                 <g id="mapPaths"></g>
                 <g id="mapStations"></g>
                 <g id="mapPoints"></g>
+                <g id="rtsOverlay"></g>
                 <g id="robotMarkers"></g>
               </svg>
+              <div
+                id="backgroundCaption"
+                class="map-background-caption"
+                hidden
+              ></div>
               <div id="mapEmpty" class="map-empty">
                 <div class="empty-map-art" aria-hidden="true">
                   <svg viewBox="0 0 140 86">
@@ -346,7 +420,7 @@
                 <div class="setup-progress">
                   <span id="setupServer"><i></i>Server</span
                   ><span id="setupModel"><i></i>Plant model</span
-                  ><span id="setupVehicles"><i></i>Vehicles</span>
+                  ><span id="setupVehicles"><i></i>车辆</span>
                 </div>
               </div>
               <div class="map-compass" aria-label="Positive Y points upwards">
@@ -370,6 +444,11 @@
               </div>
               <div id="mapFocusHint" class="map-focus-hint" hidden></div>
             </div>
+            <section id="overviewSidePanel" class="overview-side-panel" aria-label="Gazebo 俯视直播" hidden>
+              <h3>Gazebo 俯视直播</h3>
+              <div id="overviewSideHost"></div>
+            </section>
+            </div>
             <div class="map-footer">
               <div class="map-legend">
                 <span><i class="legend-path"></i>Path</span
@@ -378,6 +457,8 @@
               </div>
               <span id="mapCoordinates">Coordinates in metres</span>
             </div>
+            <p class="map-data-boundary">路网表示可选通道；计划、分配、执行与等待分别按真实来源显示。未取得的图层不补画，历史记录不代表当前状态。</p>
+            <p id="livePoseCaption" class="map-data-boundary" hidden></p>
           </section>
           <section
             class="vehicles-panel panel"
@@ -385,18 +466,18 @@
             hidden
           >
             <div class="panel-heading">
-              <h2>Vehicles</h2>
-              <span class="subtle-label">Live reported state</span>
+              <h2>车辆</h2>
+              <span class="subtle-label">当前报告状态，非完整准入</span>
             </div>
             <div class="table-scroll">
               <table>
                 <thead>
                   <tr>
-                    <th>Vehicle</th>
-                    <th>Status</th>
-                    <th>Position</th>
-                    <th>Battery</th>
-                    <th>Current order</th>
+                    <th>车辆</th>
+                    <th>状态</th>
+                    <th>位置</th>
+                    <th>电量</th>
+                    <th>当前订单</th>
                   </tr>
                 </thead>
                 <tbody id="vehicleTable"></tbody>
@@ -404,16 +485,17 @@
             </div>
             <div id="vehiclesEmpty" class="table-empty">
               <svg class="icon"><use href="#i-robot" /></svg>
-              <h3>No vehicles reported</h3>
+              <h3>尚无车辆报告</h3>
               <p>
                 Vehicles appear here when they are available in the connected
                 fleet.
               </p>
             </div>
+            <div id="fleetReleaseSummary" class="release-summary"></div>
           </section>
           <aside class="inspector panel" aria-label="Object inspector">
             <div class="panel-heading">
-              <h2>Inspector</h2>
+              <h2>所选对象</h2>
               <span id="inspectorType" class="subtle-label">No selection</span>
             </div>
             <div
@@ -422,9 +504,9 @@
               aria-label="Inspector tabs"
             >
               <button id="detailsTab" role="tab" aria-selected="true">
-                Details</button
+                对象详情</button
               ><button id="dispatchTab" role="tab" aria-selected="false">
-                Dispatch
+                导航下单
               </button>
             </div>
             <div id="detailsContent">
@@ -458,15 +540,15 @@
                   class="button button-withdraw"
                   disabled
                 >
-                  Withdraw current order
+                  请求撤销当前订单
                 </button>
               </div>
             </div>
             <div id="dispatchContent" class="dispatch-content" hidden>
-              <p class="section-caption">Create a transport order</p>
+              <p class="section-caption">创建导航到站任务</p>
               <form id="navigateForm">
                 <label
-                  >Vehicle<select
+                  >车辆<select
                     id="dispatchRobot"
                     aria-label="Dispatch vehicle"
                   ></select
@@ -479,7 +561,7 @@
                   </div>
                 </div>
                 <label
-                  >Destination<select
+                  >目的站<select
                     id="toPoint"
                     aria-label="Destination"
                   ></select
@@ -493,26 +575,31 @@
                   type="submit"
                   disabled
                 >
-                  Send order<svg class="icon"><use href="#i-arrow" /></svg>
+                  提交导航请求<svg class="icon"><use href="#i-arrow" /></svg>
                 </button>
               </form>
               <p class="fine-print">
-                An accepted request is not an arrival confirmation. Follow the
-                reported vehicle state.
+                请求受理不代表到站或搬运完成。起点取车辆报告位置；不含取货、顶升或交接。
               </p>
             </div>
             <div class="inspector-footer">
               <svg class="icon"><use href="#i-lock" /></svg
               ><span id="inspectorAccess">Read-only session</span
-              ><button id="inspectorAccessButton">Manage access</button>
+              ><button id="inspectorAccessButton">管理会话</button>
             </div>
           </aside>
+          <section id="receiptWorkspace" class="panel receipt-workspace" hidden aria-label="服务端任务与事件记录">
+            <div id="serverTasksHistory"></div>
+            <div id="serverEventsHistory" hidden></div>
+            <details class="local-receipt-tools"><summary>本浏览器未决请求与原始回执</summary><p class="fine-print">保留本页曾提交的原始请求与待核对结果。全站查询见上方记录；这里不会重发命令。</p><div id="receiptView"></div></details>
+          </section>
+          <details class="kernel-records-disclosure"><summary>当前内核订单与页面连接日志</summary>
           <section class="lower-panel panel" aria-label="Orders and activity">
             <div class="lower-tabs" role="tablist" aria-label="Operations data">
               <button id="ordersTab" role="tab" aria-selected="true">
-                Transport orders<span id="ordersTabCount">0</span></button
+                当前内核订单<span id="ordersTabCount">0</span></button
               ><button id="activityTab" role="tab" aria-selected="false">
-                Activity<span id="activityTabCount">0</span></button
+                页面连接日志<span id="activityTabCount">0</span></button
               ><span id="dataFreshness">Waiting for live state</span>
             </div>
             <div id="ordersContent">
@@ -520,11 +607,11 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Order</th>
-                      <th>Vehicle</th>
-                      <th>Destination</th>
-                      <th>State</th>
-                      <th>Created</th>
+                      <th>订单</th>
+                      <th>车辆</th>
+                      <th>目的站</th>
+                      <th>状态</th>
+                      <th>创建时间</th>
                     </tr>
                   </thead>
                   <tbody id="ordersTable"></tbody>
@@ -535,8 +622,8 @@
                   ><svg class="icon"><use href="#i-orders" /></svg
                 ></span>
                 <div>
-                  <h3>No transport orders</h3>
-                  <p>Orders from the connected fleet will appear here.</p>
+                  <h3>尚无运输订单</h3>
+                  <p>此处显示内核订单；无示例订单。</p>
                 </div>
                 <span class="empty-table-note"
                   >Live data · No sample orders</span
@@ -555,12 +642,13 @@
                   ><svg class="icon"><use href="#i-activity" /></svg
                 ></span>
                 <div>
-                  <h3>No session activity yet</h3>
-                  <p>Connection changes and operation receipts appear here.</p>
+                  <h3>当前页尚无会话记录</h3>
+                  <p>这里仅保存本页连接与操作反馈，不是全站历史审计。</p>
                 </div>
               </div>
             </div>
           </section>
+          </details>
         </div>
         <footer class="workspace-footer">
           <span
@@ -579,41 +667,35 @@
       <form id="accessForm">
         <div class="dialog-heading">
           <div>
-            <span class="eyebrow">SESSION ACCESS</span>
-            <h2>Enable fleet controls</h2>
+            <h2>操作员登录</h2>
           </div>
           <button
             class="button icon-button button-quiet"
             type="button"
             data-close-dialog
-            aria-label="Close access dialog"
+            aria-label="关闭登录窗口"
           >
             <svg class="icon"><use href="#i-close" /></svg>
           </button>
         </div>
-        <p>
-          Enter your operator control key to request transport orders, pauses
-          and withdrawals.
-        </p>
-        <label
-          >Control key<input
+        <p id="accessStatus"></p>
+        <p id="accessGuestObservation" hidden><a href="#/operations">到运行总览查看实时位置和已开启的直播</a></p>
+        <div id="accessCredentials"><label
+          >操作员密钥<input
             id="controlKey"
             type="password"
             autocomplete="off"
             spellcheck="false"
-            placeholder="Enter your operator key"
+            placeholder="请输入操作员密钥"
             required
         /></label>
-        <p class="fine-print">
-          Your key stays in this browser tab's memory and is cleared when you
-          leave.
-        </p>
+        <p class="fine-print">正式工作台登录可在此浏览器的工作台标签页和编辑器间共享。</p></div>
         <p id="accessError" class="form-error" role="alert" hidden></p>
         <div class="dialog-actions">
-          <button id="clearAccess" class="button" type="button">
-            End control session</button
+          <button id="clearAccess" class="button" type="button" hidden>
+            退出登录</button
           ><button id="saveAccess" class="button button-primary" type="submit">
-            Enable controls
+            登录
           </button>
         </div>
       </form>
@@ -662,8 +744,8 @@
           <div>
             <h3>Load a measured plant model</h3>
             <p>
-              Define stations and approved routes in openTCS Model Editor, load
-              the model into the kernel, then refresh this view.
+              Import the original map in the web editor and draw a draft route
+              network. Kernel publication is a separate commissioning step.
             </p>
           </div>
         </li>
@@ -672,8 +754,11 @@
         This view displays the live plant model. It does not generate or approve
         routes from an image.
       </p>
+      <a class="button button-primary" href="editor.html"
+        >Open web map editor</a
+      >
       <a
-        class="button button-primary"
+        class="button"
         href="https://opentcs.org/docs/7/users-guide.html"
         target="_blank"
         rel="noopener noreferrer"
@@ -682,6 +767,20 @@
     </dialog>
     <div id="toast" class="toast" role="status" hidden></div>
     <script src="fleet-api.js"></script>
+    <script src="portal-state.js"></script>
+    <script src="command-receipts.js"></script>
+    <script src="src/pages/missions/history-ui.js"></script>
+    <script src="motion-preset-ui.js"></script>
+    <script src="map-release-ui.js"></script>
+    <script src="simulation-run-ui.js"></script>
+    <script src="scenario-ui.js"></script>
+    <script src="replay-ui.js"></script>
+    <script src="src/pages/simulation/environment-ui.js"></script>
+    <script src="src/pages/simulation/overview-video.js"></script>
+    <script src="src/pages/maps/scene-builder/workcell-model.js"></script>
+    <script src="src/pages/maps/scene-library.js"></script>
+    <script src="src/pages/maps/scene-history-ui.js"></script>
+    <script src="live-vehicle-poses.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
