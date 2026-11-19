@@ -30,3 +30,11 @@ test('scenes may place any of the four pool robots and leave the rest out',()=>{
  const bad=JSON.parse(JSON.stringify(scene));bad.navigation.points[0].id='LAB-03';
  assert.ok(N.validate(bad).some(e=>/保留名称/.test(e)));
 });
+test('traffic zones are an opt-in navigation field',()=>{
+ let scene=N.addPoint(G.fresh(),{x:0,y:0});
+ assert.equal(N.zoned(scene),false);
+ scene=N.setZoned(scene,true);assert.deepEqual(scene.navigation.traffic,{policy:'zones-v1'});assert.equal(N.zoned(scene),true);
+ scene=N.setZoned(scene,false);assert.equal('traffic' in scene.navigation,false);
+ const bad=JSON.parse(JSON.stringify(scene));bad.navigation.traffic={policy:'free'};
+ assert.ok(N.validate(bad).includes('交通方式无效'));
+});

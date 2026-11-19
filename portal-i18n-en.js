@@ -178,7 +178,7 @@
     "两份修订均读取成功后才显示差异。": "The diff appears once both revisions load.",
     "两点已选，填写实际距离后应用标定。": "Both points selected; enter the real distance and apply calibration.",
     "两点过近或图纸范围过大，请核对实际距离并选取间隔较远的点。": "Points too close or drawing too large; check the real distance and pick points further apart.",
-    "两辆车分别选择起点和朝向，保存后在生成页检查。": "Pick a start and heading for each vehicle, save, then check on the generation step.",
+    "为每辆参与的车选择起点和朝向，保存后在生成页检查。": "Pick a start and heading for each participating vehicle, save, then check on the generation step.",
     "个。": " items.",
     "个场景": " scenes",
     "个对象": " objects",
@@ -2330,7 +2330,11 @@
     "；观察时间：": "; observed at:",
     "；请求期限：": "; request deadline:",
     "；路线扫掠半径": "; path sweep radius",
-    "；运动源": "; motion source"
+    "；运动源": "; motion source",
+    "交通方式无效": "Invalid traffic mode",
+    "分区交通：不同区域的车辆可同时行驶": "Traffic zones: vehicles in different areas may move at the same time",
+    "不勾选时整个路网只允许一辆车行驶。勾选后每个路口及相邻路线各为一个分区；两车在同一双向通道上相向行驶可能互相等待，建议用单向环路或旁侧停靠位。": "Unchecked, only one vehicle may move on the whole network. Checked, each junction and its adjacent routes form one zone; two vehicles driving toward each other on the same two-way corridor may wait for each other, so prefer one-way loops or side bays.",
+    "交通方式已修改，记得保存场景。": "Traffic mode changed. Remember to save the scene."
   };
   root.PortalI18nEN = EN;
   if (typeof module !== "undefined") module.exports = EN;

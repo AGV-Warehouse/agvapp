@@ -11,7 +11,8 @@ function validate(scene){
  if(scene.schemaVersion!=='1.1')errors.push('路网修改需使用新版场景格式');
  if(!nav||typeof nav!=='object'||Array.isArray(nav))return [...errors,'路网内容无效'];
  const unknown=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).some(key=>!keys.includes(key));
- if(unknown(nav,['points','paths','stations','spawns']))errors.push('路网包含不支持的属性');
+ if(unknown(nav,['points','paths','stations','spawns','traffic']))errors.push('路网包含不支持的属性');
+ if(nav.traffic!==undefined&&(unknown(nav.traffic,['policy'])||nav.traffic?.policy!=='zones-v1'))errors.push('交通方式无效');
  for(const key of ['points','paths','stations','spawns'])if(!Array.isArray(nav[key]))errors.push('点位、路线、停车位与车辆起点必须为列表');
  if(errors.length)return errors;
  for(const [key,limit,label]of [['points',100,'点位'],['paths',200,'路线'],['stations',50,'停车位'],['spawns',vehicles.length,'车辆起点']])if(nav[key].length>limit)errors.push(`${label}最多${limit}项`);
@@ -57,6 +58,9 @@ function setWorkcell(scene,stationId,plan){
 function update(scene,selection,patch){const next=editable(scene),item=find(next,selection);if(!item)throw Error('路网对象不存在');const allowed={point:['name','x','y'],path:['name','sourcePointId','targetPointId','direction','maxVelocity'],station:['name','pointId','yaw']}[selection.kind];for(const key of Object.keys(patch))if(!allowed.includes(key))throw Error('此属性不能修改');Object.assign(item,copy(patch));if(typeof item.name==='string')item.name=item.name.trim();return checked(next);}
 function remove(scene,selection){const next=editable(scene),n=next.navigation;if(!find(next,selection))throw Error('路网对象不存在');if(selection.kind==='point'){n.points=n.points.filter(p=>p.id!==selection.id);n.paths=n.paths.filter(p=>p.sourcePointId!==selection.id&&p.targetPointId!==selection.id);n.stations=n.stations.filter(p=>p.pointId!==selection.id);n.spawns=n.spawns.filter(p=>p.pointId!==selection.id);}else if(selection.kind==='path')n.paths=n.paths.filter(p=>p.id!==selection.id);else n.stations=n.stations.filter(p=>p.id!==selection.id);return checked(next);}
 function setSpawn(scene,{vehicleName,pointId,yaw=0}){if(!vehicles.includes(vehicleName))throw Error('请选择支持的车辆');const next=editable(scene),n=next.navigation;n.spawns=n.spawns.filter(s=>s.vehicleName!==vehicleName);if(pointId)n.spawns.push({vehicleName,pointId,yaw});return checked(next);}
+// Per-area traffic zones: robots in different areas may move at the same time.
+function zoned(scene){return read(scene).traffic?.policy==='zones-v1';}
+function setZoned(scene,enabled){const next=editable(scene);if(enabled)next.navigation.traffic={policy:'zones-v1'};else delete next.navigation.traffic;return checked(next);}
 function summary(scene){const n=read(scene);return `点位 ${n.points.length} · 路线 ${n.paths.length} · 停车位 ${n.stations.length} · 参与车辆 ${n.spawns.length}/${vehicles.length}`;}
-const api={read,validate,find,addPoint,addPath,addStation,setWorkcell,update,remove,setSpawn,summary,vehicles,idOK};root.SceneNetworkModel=api;if(typeof module==='object'&&module.exports)module.exports=api;
+const api={read,validate,find,addPoint,addPath,addStation,setWorkcell,update,remove,setSpawn,zoned,setZoned,summary,vehicles,idOK};root.SceneNetworkModel=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);
