@@ -582,7 +582,7 @@
     "只有已明确拒绝的开始才可返回方案，未知结果须继续核对。": "Only explicitly rejected starts can return to the plan; unknown results need more checking.",
     "只有待审阅的执行可明确继续。": "Only executions awaiting review can be continued.",
     "只有服务端当前已完成或待核对的发布记录可申请停用；请先读取最新状态。": "Only publishes the server reports as completed or to verify can be retired; load the latest state first.",
-    "只用于仿真。急停与区域侵入使用与实车相同的安全信号；订单不会被撤销，解除后车辆继续。": "Simulation only. E-stop and zone intrusion use the same safety signals as a real vehicle; orders are not cancelled and vehicles continue once cleared.",
+    "只用于仿真。急停与区域侵入使用与实车相同的安全信号。静止时可直接解除；行驶中触发会锁存安全故障并暂停订单，解除后车辆不会自动继续，需撤单后重新派发。": "Simulation only. E-stop and zone intrusion use the same safety signals as a real vehicle. While standing still they can simply be cleared; while driving they latch a safety fault and pause the order, so the vehicle does not continue after clearing: cancel the run and dispatch again.",
     "只能复制关联单个点位的停车工位。": "Only parking stations linked to a single point can be copied.",
     "只能复制墙体或障碍物": "Only walls or obstacles can be copied",
     "只读": "Read-only",

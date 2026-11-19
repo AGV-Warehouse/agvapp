@@ -111,7 +111,7 @@
       : '';
     const readOnly = options.canWrite ? '' : '<p class="fault-warning">只读：需要操作员会话才能注入故障。</p>';
     return `
-      <p class="fault-intro">只用于仿真。急停与区域侵入使用与实车相同的安全信号；订单不会被撤销，解除后车辆继续。</p>
+      <p class="fault-intro">只用于仿真。急停与区域侵入使用与实车相同的安全信号。静止时可直接解除；行驶中触发会锁存安全故障并暂停订单，解除后车辆不会自动继续，需撤单后重新派发。</p>
       ${readOnly}${workerNote}
       ${options.error ? `<p class="fault-error" role="alert">${escapeHTML(options.error)}</p>` : ''}
       <div class="fault-robots">${cards}</div>
