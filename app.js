@@ -787,7 +787,8 @@ function renderPortal() {
   if (connectionCapabilities?.environment==="SIM") {
     const activeProfile=publicationStatus?.releases?.find(r=>r.releaseId===admittedRelease)?.profileId;
     $("portalOriginState").textContent=`来源：隔离仿真 SIM · ${connectionCapabilities.targetId || "目标未提供"} · ${activeProfile || connectionCapabilities.profileId || "能力配置未提供"}`;
-    document.querySelector('.environment-label').textContent="SIM · 隔离仿真";
+    const environmentLabel=connectionCapabilities.activeEnvironment?.label;
+    document.querySelector('.environment-label').textContent=environmentLabel?`SIM · ${environmentLabel}`:"SIM · 隔离仿真";
   }
   $("portalSessionState").textContent = api.authorized
     ? receiptSnapshot.canWrite ? "操作员已登录 · 可提交操作" : "操作员已登录 · 当前仅可查询"

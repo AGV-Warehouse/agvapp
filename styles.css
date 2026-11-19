@@ -2503,3 +2503,9 @@ td .table-link {
   bottom: 16px;
   z-index: 50;
 }
+
+.advanced-publishing-note {
+  margin: 0 0 12px;
+  color: #52647a;
+  font-size: 12px;
+}

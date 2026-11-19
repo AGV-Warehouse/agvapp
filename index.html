@@ -129,7 +129,7 @@
             ><b id="vehicleNavCount">0</b>
           </button>
           <button class="nav-item" data-view="simulation" title="虚拟实验"
-            ><svg class="icon"><use href="#i-robot" /></svg
+            ><svg class="icon"><use href="#i-layers" /></svg
             ><span>虚拟实验</span></button
           >
           <button class="nav-item" data-view="events" title="事件与对账">
@@ -195,18 +195,17 @@
               id="estopButton"
               class="button button-pause"
               disabled
-              title="Request an operational pause; this is not an emergency stop"
+              title="请求运营暂停；这不是急停"
             >
               <svg class="icon"><use href="#i-pause" /></svg
               ><span>全车运营暂停</span></button
             ><button
               id="resumeButton"
-              class="button icon-button"
+              class="button"
               disabled
-              title="Request fleet resume"
-              aria-label="全车恢复"
+              title="请求全部车辆恢复运营"
             >
-              <svg class="icon"><use href="#i-play" /></svg></button
+              <svg class="icon"><use href="#i-play" /></svg><span>全车恢复</span></button
             ><button id="newOrderButton" class="button button-primary" disabled>
               <svg class="icon"><use href="#i-plus" /></svg
               ><span>新导航任务</span>
@@ -228,7 +227,7 @@
         <section id="mapsWorkspace" class="panel portal-workspace" hidden aria-label="地图与发布">
           <div id="sceneLibraryView"><div class="scene-builder-entry"><div><h2>我的场景</h2><p>打开已保存的场地继续规划，或从空场地开始。</p></div><a class="button button-primary" href="scene-builder.html">新建场景</a></div></div>
           <details id="sceneHistoryPanel" class="scene-history-panel"><summary>场景档案 · 修订、版本与运行</summary><div id="sceneHistoryView"></div></details>
-          <details class="advanced-publishing"><summary>高级地图草稿、发布与历史</summary><div id="mapReleaseView"><h2>地图草稿工作区</h2><p>发布服务尚未读取。</p><a class="button" href="editor.html">打开地图编辑器</a></div></details>
+          <details class="advanced-publishing"><summary>高级：ROS 地图草稿、发布与历史</summary><p class="advanced-publishing-note">从机器人保存的 ROS 地图开始时使用。新建仿真场景请用上方的“新建场景”。</p><div id="mapReleaseView"><h2>地图草稿工作区</h2><p>发布服务尚未读取。</p><a class="button" href="editor.html">打开地图编辑器</a></div></details>
         </section>
         <section id="simulationWorkspace" class="panel portal-workspace" hidden aria-label="虚拟实验">
           <div id="simulationEnvironmentView"></div>
@@ -242,7 +241,6 @@
             <div id="simulationReleaseSummary" class="release-summary" hidden></div>
           </div>
           <div id="replayView" class="replay-view" role="region" aria-label="历史运行复盘，只读" hidden></div>
-          <details><summary>其他实验服务</summary><p>Digital Twin 提供独立 Nav2 演示。</p><a class="button" href="/twin/">进入 Digital Twin 独立实验</a></details>
         </section>
         <section id="rtsWorkspace" class="panel portal-workspace" aria-label="RTS 资源观察"><div id="rtsRunView"><h2>当前作业</h2><p>操作员登录后可查看任务详情。</p></div></section>
         <section class="fleet-summary" aria-label="Fleet summary">
