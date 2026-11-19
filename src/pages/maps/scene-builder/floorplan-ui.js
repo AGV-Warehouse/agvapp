@@ -83,7 +83,9 @@ function mount(container, options = {}) {
 
   function describe(name, text) {
     const element = find(name);
-    if (element.textContent !== text) element.textContent = text;
+    const setIfChanged = root.PortalI18n?.setIfChanged;
+    if (setIfChanged) setIfChanged(element, 'textContent', text);
+    else if (element.textContent !== text) element.textContent = text;
     element.hidden = !text;
   }
 

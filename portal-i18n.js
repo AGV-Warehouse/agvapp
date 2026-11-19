@@ -188,6 +188,27 @@
   let lang = readStored() || "zh";
   const translate = (text) => (lang === "en" ? toEnglish(text) : toChinese(text));
 
+  /*
+   * Render guards like `if (el.innerHTML !== html) el.innerHTML = html` break
+   * once the text is translated: the rendered text never equals the Chinese
+   * source again, so the element is rebuilt on every tick. setIfChanged()
+   * remembers the source value and what it rendered to (after translation)
+   * and only writes when either changed.
+   */
+  function setIfChanged(el, prop, value) {
+    const key = "__portalI18n_" + prop;
+    const last = el[key];
+    if (last && last.src === value && el[prop] === last.out) return false;
+    el[prop] = value;
+    const rec = { src: value, out: el[prop] };
+    el[key] = rec;
+    // Runs after the translation observer, which was queued by the write above.
+    queueMicrotask(() => {
+      if (el[key] === rec) rec.out = el[prop];
+    });
+    return true;
+  }
+
   const api = {
     get lang() {
       return lang;
@@ -196,6 +217,7 @@
     toEnglish,
     toChinese,
     setLang,
+    setIfChanged,
     onChange: null,
   };
   root.PortalI18n = api;

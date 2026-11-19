@@ -10,8 +10,10 @@ const esc = (value) =>
   );
 const icon = (name) =>
   `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+// Translation-safe "write only when changed" (see portal-i18n.js).
+const setIfChanged = window.PortalI18n?.setIfChanged || ((el, prop, value) => (el[prop] !== value ? ((el[prop] = value), true) : false));
 const html = (id, value) => {
-  if ($(id).innerHTML !== value) $(id).innerHTML = value;
+  setIfChanged($(id), "innerHTML", value);
 };
 let robots = [],
   orders = [],
@@ -507,6 +509,7 @@ function fitMap() {
   camera = { ...fitCamera };
   applyCamera();
 }
+let lastRunOverlay = null;
 function renderMap() {
   const guest = guestOverview();
   const displayedModel = overviewMapModel();
@@ -518,7 +521,18 @@ function renderMap() {
   lastGuestOverview = !!guest;
   const runState=simulationRunView?.controller.state;
   const currentRelease=runState?.status?.currentAdmission?.releaseId;
-  html("rtsOverlay",!guest && window.SimulationRunUI && currentRelease && modelFresh && synchronizedReleaseId===currentRelease && runState?.fresh ? window.SimulationRunUI.pairMapOverlay(window.SimulationRunUI.liveRunsForRelease((runState.observedRuns.length?runState.observedRuns:[runState.run]),currentRelease),model || {},false) : "");
+  const overlayAllowed = !guest && window.SimulationRunUI && currentRelease && modelFresh && synchronizedReleaseId===currentRelease;
+  let runOverlay = "";
+  if (overlayAllowed && runState?.fresh) {
+    runOverlay = window.SimulationRunUI.pairMapOverlay(window.SimulationRunUI.liveRunsForRelease((runState.observedRuns.length?runState.observedRuns:[runState.run]),currentRelease),model || {},false);
+    lastRunOverlay = { releaseId: currentRelease, html: runOverlay };
+  } else if (overlayAllowed && runState?.refreshing && !runState.error && lastRunOverlay?.releaseId === currentRelease) {
+    // The 5 s run poll clears `fresh` while its requests are in flight. Keep
+    // the last drawing until the poll finishes, so the purple resource
+    // markers don't blink off and on with every poll.
+    runOverlay = lastRunOverlay.html;
+  } else lastRunOverlay = null;
+  html("rtsOverlay", runOverlay);
   const map = displayedModel || { points: [], paths: [], stations: [] },
     byId = new Map(map.points.map((p) => [p.id, p]));
   if ($("mapSvg").clientWidth > 0 && $("mapSvg").clientHeight > 0)
@@ -677,7 +691,7 @@ function renderLiveVehicles() {
       stateReceived ? "openTCS 车辆位置未提供或已过期。" : "等待车辆位置。";
   }
   caption.hidden = !message;
-  if (caption.textContent !== (message || "")) caption.textContent = message || "";
+  setIfChanged(caption, "textContent", message || "");
   const unit = mapUnit;
   const markers = vehicles.map(({ id, estimate, truth, estimateText, truthText }) => {
     const labelPose = estimate || truth;
@@ -696,10 +710,9 @@ function renderLiveVehicles() {
     return `<g class="map-vehicle${guest ? "" : " map-item" + selected}"${interaction}><title>${esc([id, estimateText, truthText].filter(Boolean).join(" · "))}</title>${estimateMarker}${truthMarker}<text class="map-label" x="${x - 10 * unit}" y="${y + 22 * unit}" font-size="${10 * unit}">${esc(id)}</text></g>`;
   }).join("");
   const layer = $("robotMarkers");
-  if (layer.innerHTML !== markers) {
-    const focused = document.activeElement;
-    const focusedId = focused?.parentElement === layer ? focused.dataset.objectId : null;
-    layer.innerHTML = markers;
+  const focused = document.activeElement;
+  const focusedId = focused?.parentElement === layer ? focused.dataset.objectId : null;
+  if (setIfChanged(layer, "innerHTML", markers)) {
     if (focusedId) [...layer.children].find((item) => item.dataset.objectId === focusedId)?.focus();
   }
   return !!markers;

@@ -290,7 +290,9 @@
       else if (registration && playing?.playing && playing.session !== registration.session) message = '直播已切换，正在重新核对配准。';
       else if (playing?.message && !playing.playing) message = `${playing.message} 二维地图可继续使用。`;
       else message = '正在等待配准和实时画面，二维地图可继续使用。';
-      if (el.status.textContent !== message) el.status.textContent = message;
+      const setIfChanged = root.PortalI18n?.setIfChanged;
+      if (setIfChanged) setIfChanged(el.status, 'textContent', message);
+      else if (el.status.textContent !== message) el.status.textContent = message;
     }
 
     function setMode(value) {
