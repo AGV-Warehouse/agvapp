@@ -12,6 +12,8 @@
   "manifest.webmanifest",
   "map-release-ui.js",
   "motion-preset-ui.js",
+  "portal-i18n-en.js",
+  "portal-i18n.js",
   "portal-state.js",
   "portal-update.js",
   "replay-ui.js",

@@ -2491,3 +2491,15 @@ td .table-link {
 .fault-warning,.fault-error{color:#8c1d18}
 .fault-history{padding-left:1.2rem;overflow-wrap:anywhere}
 .fault-actions .button-danger{background:#b3261e;color:#fff;border-color:#b3261e}
+
+/* Language switch (portal-i18n.js) */
+.lang-toggle {
+  min-width: 72px;
+  justify-content: center;
+}
+.lang-toggle-floating {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+}
