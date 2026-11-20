@@ -720,6 +720,7 @@ function renderLiveVehicles() {
     return { id, x, y };
   }).filter((v) => Number.isFinite(v.x) && Number.isFinite(v.y));
   renderSelectionBar();
+  renderTraffic(unit, guest);
   renderIntents(unit);
   rtsMap?.renderMinimap();
   const layer = $("robotMarkers");
@@ -1322,6 +1323,26 @@ function renderSelectionBar() {
 // Accepted map dispatches drawn right away as a dashed "heading to" line; the
 // line is only the operator's accepted intent, never a planned route. It
 // clears when the vehicle reports the destination or after three minutes.
+// openTCS routes, held resources and waiting reasons (read-only).
+function renderTraffic(unit, guest) {
+  const overlay = window.TrafficOverlay;
+  if (!overlay || guest || !connected()) {
+    setIfChanged($("trafficOverlay"), "innerHTML", "");
+    $("trafficAlerts").hidden = true;
+    return;
+  }
+  const shown = overviewMapModel() || { points: [], paths: [], stations: [] };
+  const points = new Map([...shown.points, ...shown.stations].filter(validXY).map((p) => [p.id, pointXY(p)]));
+  const paths = new Map(shown.paths.filter((p) => points.has(p.source) && points.has(p.target))
+    .map((p) => [p.id, [points.get(p.source), points.get(p.target)]]));
+  const positions = new Map(rtsVehicles.map((v) => [v.id, [v.x, v.y]]));
+  setIfChanged($("trafficOverlay"), "innerHTML",
+    overlay.render({ robots, orders, geometry: { points, paths }, positions, unit, selected: mapSelection }));
+  const alerts = overlay.alerts(robots, orders);
+  setIfChanged($("trafficAlerts"), "textContent", alerts.map((a) => `${a.id}：${a.text}`).join(" · "));
+  $("trafficAlerts").hidden = !alerts.length;
+  $("trafficAlerts").dataset.level = alerts.some((a) => a.level === "alert") ? "alert" : "warn";
+}
 function renderIntents(unit) {
   const layer = $("rtsIntents");
   const stations = new Map((model?.stations || []).filter(validXY).map((s) => [s.id, pointXY(s)]));
@@ -1334,7 +1355,8 @@ function renderIntents(unit) {
       continue;
     }
     const from = rtsVehicles.find((v) => v.id === robotId), to = stations.get(intent.stationId);
-    if (!from || !to) continue;
+    // Once openTCS reports the planned route, that replaces the intent line.
+    if (!from || !to || window.TrafficOverlay?.remainingRoute(robot, orders).length) continue;
     markup += `<g class="rts-intent"><title>${esc(robotId)} → ${esc(intent.stationId)}（已受理，等待到站）</title><path d="M${from.x} ${from.y} L${to[0]} ${to[1]}" stroke-width="${2 * unit}" stroke-dasharray="${6 * unit} ${5 * unit}"/><circle cx="${to[0]}" cy="${to[1]}" r="${13 * unit}" stroke-width="${2 * unit}"/></g>`;
   }
   setIfChanged(layer, "innerHTML", markup);

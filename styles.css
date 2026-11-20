@@ -2535,3 +2535,14 @@ td .table-link {
 .rts-intent circle{fill:#f08a2414;stroke:#f08a24;animation:rts-pulse 1.4s ease-in-out infinite}
 @keyframes rts-pulse{50%{opacity:.35}}
 @media(prefers-reduced-motion:reduce){.rts-intent circle{animation:none}}
+.traffic-route path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.traffic-held{fill:none;stroke-linecap:round}
+rect.traffic-held{stroke:none}
+.traffic-note rect{fill:#fff7e6;stroke:#e8a33d;stroke-width:1;vector-effect:non-scaling-stroke}
+.traffic-note text{fill:#7a4b00}
+.traffic-note.alert rect{fill:#fdecec;stroke:#d64545}
+.traffic-note.alert text{fill:#a11d1d}
+.traffic-wait-link{fill:none;stroke:#e8a33d}
+.traffic-alerts{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 420px);padding:7px 12px;border-radius:7px;background:#fff7e6;border:1px solid #e8a33d;color:#7a4b00;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+.traffic-alerts[data-level="alert"]{background:#fdecec;border-color:#d64545;color:#a11d1d}
+@media(max-width:700px){.traffic-alerts{max-width:calc(100% - 24px);bottom:64px}}

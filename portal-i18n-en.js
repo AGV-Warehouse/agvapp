@@ -2357,7 +2357,16 @@
     "选择目的工位": "Choose a destination station",
     "右键地图上的工位（小方块）把所选车辆派过去。": "Right-click a station (small square) on the map to send the selected vehicle there.",
     "· 点击或右键工位派车 · Esc 取消选择": "· Click or right-click a station to dispatch · Esc clears",
-    "（已受理，等待到站）": " (accepted, waiting for arrival)"
+    "（已受理，等待到站）": " (accepted, waiting for arrival)",
+    "离线或状态已过期，位置和任务不可信": "Offline or stale: position and task can't be trusted",
+    "车辆报告错误": "Vehicle reports an error",
+    "当前订单失败": "Current order failed",
+    "已暂停：收到运营暂停请求，不会继续派发": "Paused: an operations pause was requested; no further dispatch",
+    "等待": "Waiting for",
+    "让出": "to release",
+    "已接单，等待开始执行": "Order accepted, waiting to start",
+    "· openTCS 规划路线（剩余": "· openTCS planned route (remaining",
+    "段）": "segments)"
   };
   root.PortalI18nEN = EN;
   if (typeof module !== "undefined") module.exports = EN;

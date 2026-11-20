@@ -391,6 +391,7 @@
                 <g id="mapStations"></g>
                 <g id="mapPoints"></g>
                 <g id="rtsOverlay"></g>
+                <g id="trafficOverlay"></g>
                 <g id="rtsIntents"></g>
                 <g id="robotMarkers"></g>
               </svg>
@@ -443,6 +444,7 @@
                 </button>
               </div>
               <div id="mapFocusHint" class="map-focus-hint" hidden></div>
+              <div id="trafficAlerts" class="traffic-alerts" role="status" hidden></div>
             </div>
             <section id="overviewSidePanel" class="overview-side-panel" aria-label="Gazebo 俯视直播" hidden>
               <h3>Gazebo 俯视直播</h3>
@@ -783,6 +785,7 @@
     <script src="src/pages/maps/scene-history-ui.js"></script>
     <script src="live-vehicle-poses.js"></script>
     <script src="src/pages/operations/rts-map.js"></script>
+    <script src="src/pages/operations/traffic-overlay.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
