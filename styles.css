@@ -2629,3 +2629,4 @@ html:not(.engineering-mode) #backgroundCaption{display:none!important}
 .history-outcome.done{color:#17784f}.history-outcome.alert{color:#b42318}
 table th{font-size:11px}table td{font-size:13px}
 .robot-row small{font-size:11px}
+.workspace[data-route="missions"] #taskQueuePanel .panel-link{display:none}
