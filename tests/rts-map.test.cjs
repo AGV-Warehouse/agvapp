@@ -66,7 +66,7 @@ test('right-click snaps to the nearest station within the radius only', () => {
   assert.equal(Rts.nearest(stations, {x: 4, y: 3}, 24), 'S-1');
   assert.equal(Rts.nearest(stations, {x: 100, y: 100}, 24), null);
   const source = fs.readFileSync(path.join(__dirname, '..', 'src/pages/operations/rts-map.js'), 'utf8');
-  assert.match(source, /addEventListener\('contextmenu', event => \{\s+event\.preventDefault\(\);/);
+  assert.match(source, /host\.addEventListener\('contextmenu', event => \{\s+event\.preventDefault\(\);/);
 });
 
 test('a quick drag release flings, a held pointer does not', () => {

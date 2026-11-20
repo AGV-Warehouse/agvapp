@@ -208,12 +208,14 @@
       zoomBy(factor, localPoint(event));
     }, {passive: false});
 
-    // The map owns the right button: never show the browser's menu here. A
-    // right-click near a station (within ~24 px) counts as on the station.
-    svg.addEventListener('contextmenu', event => {
+    // The whole live map control owns the right button (map, minimap, labels,
+    // overlays): the browser menu never opens here. A right-click within
+    // ~40 px of a station counts as on that station.
+    host.addEventListener('contextmenu', event => {
       event.preventDefault();
-      const station = event.target.closest('[data-object-kind="stations"]')?.dataset.objectId ||
-        nearest(o.stations?.() || [], localPoint(event), 24 * o.unit());
+      if (!svg.getScreenCTM()) return;
+      const station = event.target.closest?.('[data-object-kind="stations"]')?.dataset.objectId ||
+        nearest(o.stations?.() || [], localPoint(event), 40 * o.unit());
       if (station) o.onStationCommand(station, event.clientX, event.clientY);
       else o.onEmptyCommand?.(event.clientX, event.clientY);
     });
