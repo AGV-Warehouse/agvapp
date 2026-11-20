@@ -39,6 +39,7 @@
   "src/pages/maps/scene-history-ui.js",
   "src/pages/maps/scene-library.js",
   "src/pages/missions/history-ui.js",
+  "src/pages/operations/rts-map.js",
   "src/pages/simulation/environment-ui.js",
   "src/pages/simulation/fault-ui.js",
   "src/pages/simulation/overview-video.js",

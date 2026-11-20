@@ -2334,7 +2334,26 @@
     "交通方式无效": "Invalid traffic mode",
     "分区交通：不同区域的车辆可同时行驶": "Traffic zones: vehicles in different areas may move at the same time",
     "不勾选时整个路网只允许一辆车行驶。勾选后每个路口及相邻路线各为一个分区；两车在同一双向通道上相向行驶可能互相等待，建议用单向环路或旁侧停靠位。": "Unchecked, only one vehicle may move on the whole network. Checked, each junction and its adjacent routes form one zone; two vehicles driving toward each other on the same two-way corridor may wait for each other, so prefer one-way loops or side bays.",
-    "交通方式已修改，记得保存场景。": "Traffic mode changed. Remember to save the scene."
+    "交通方式已修改，记得保存场景。": "Traffic mode changed. Remember to save the scene.",
+    "已选": "Selected",
+    "辆：": "vehicles:",
+    "· 右键工位派车 · Esc 取消选择": "· Right-click a station to dispatch · Esc clears",
+    "点选车辆，或 Shift+拖动框选 · 滚轮缩放 · 拖动平移": "Click a vehicle or Shift+drag to box-select · Wheel to zoom · Drag to pan",
+    "派车到": "Dispatch to",
+    "该工位当前不能作为目的站（已占用锁定，或不在已发布的运行模型里）。": "This station can't be a destination right now (locked, or not in the published model).",
+    "先点选一辆车（或 Shift+拖动框选），再右键工位派车。": "Select a vehicle first (click, or Shift+drag), then right-click a station.",
+    "派车": "Dispatch",
+    "车辆：": "Vehicle:",
+    "一个工位一次派一辆车，请选择：": "One vehicle per station. Choose one:",
+    "将通过 openTCS 下发导航订单；受理只代表订单已接收，到站以车辆反馈为准。": "Sends a navigation order through openTCS. Accepted means the order was received; arrival is confirmed by vehicle feedback.",
+    "上一个请求还在等待回执。": "The previous request is still waiting for its receipt.",
+    "已受理：订单": "Accepted: order",
+    "。等待车辆执行反馈。": ". Waiting for vehicle feedback.",
+    "未受理：": "Not accepted:",
+    "请求失败": "Request failed",
+    "小地图：点击或拖动移动视野": "Minimap: click or drag to move the view",
+    "取消": "Cancel",
+    "正在提交，等待回执…": "Submitting, waiting for receipt…"
   };
   root.PortalI18nEN = EN;
   if (typeof module !== "undefined") module.exports = EN;

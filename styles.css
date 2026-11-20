@@ -2509,3 +2509,25 @@ td .table-link {
   color: #52647a;
   font-size: 12px;
 }
+
+/* RTS map interaction: box select, minimap, selection bar, command card. */
+.rts-select-box{fill:#386ae81f;stroke:#386ae8;stroke-width:1.2;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;pointer-events:none}
+.rts-minimap{position:absolute;left:12px;top:12px;width:168px;height:118px;background:#ffffffe6;border:1px solid #d5deea;border-radius:7px;box-shadow:0 3px 10px #23355514;cursor:crosshair;touch-action:none;z-index:2}
+.rts-minimap svg{display:block;width:100%;height:100%}
+.rts-minimap .mm-layout line{stroke:#b5c2d6}
+.rts-minimap .mm-layout rect{fill:#8fa1bb}
+.rts-minimap .mm-vehicles circle{fill:#386ae8}
+.rts-minimap .mm-vehicles circle.selected{fill:#f08a24}
+.rts-minimap .mm-view{fill:#386ae812;stroke:#24324a;vector-effect:non-scaling-stroke;stroke-width:1.2!important}
+.rts-selection-bar{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:calc(100% - 380px);padding:6px 12px;background:#172337e6;color:#fff;border-radius:999px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:2}
+.map-vehicle.selected .vehicle-ring{stroke:#f08a24;stroke-width:2.5;vector-effect:non-scaling-stroke}
+.rts-command-card{position:fixed;z-index:1000;width:290px;padding:14px;background:#fff;border:1px solid #d5deea;border-radius:9px;box-shadow:0 10px 30px #17233733;font-size:13px;color:var(--ink)}
+.rts-command-card strong{display:block;font-size:14px;margin-bottom:6px}
+.rts-command-card p{margin:5px 0;line-height:1.5;color:#52657d}
+.rts-command-choices{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.rts-command-choices .button[aria-pressed="true"]{border-color:#386ae8;background:#eef3ff;color:#2550bf}
+.rts-command-status:empty{display:none}
+.rts-command-status[data-kind="ok"]{color:#1f7a4d}
+.rts-command-status[data-kind="error"]{color:#b4232c}
+.rts-command-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+@media(max-width:700px){.rts-minimap{width:120px;height:84px}.rts-selection-bar{max-width:calc(100% - 160px);top:auto;bottom:56px}}

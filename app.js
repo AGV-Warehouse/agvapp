@@ -65,7 +65,11 @@ let toastTimer,
   focusTimer,
   mapUnit = 1,
   camera = { x: -300, y: -200, w: 600, h: 400 },
-  fitCamera = { ...camera };
+  fitCamera = { ...camera },
+  mapSelection = [],
+  rtsVehicles = [],
+  rtsSelectionBar = null,
+  rtsMap = null;
 const events = [],
   connected = () => upstreamOnline && streamOnline;
 const currentRobot = () => robots.find((r) => r.id === selectedRobotId);
@@ -463,6 +467,7 @@ function applyCamera() {
   $("mapSvg").setAttribute("viewBox", viewBox);
   $("mapBackgroundSvg").setAttribute("viewBox", viewBox);
   overviewVideo?.project();
+  rtsMap?.renderMinimap();
 }
 function fitMap() {
   const displayedModel = overviewMapModel();
@@ -697,7 +702,7 @@ function renderLiveVehicles() {
     const labelPose = estimate || truth;
     if (!labelPose) return "";
     const [x, y] = pointXY(labelPose);
-    const selected = selectedObject?.kind === "robots" && selectedObject.id === id ? " selected" : "";
+    const selected = mapSelection.includes(id) || selectedObject?.kind === "robots" && selectedObject.id === id ? " selected" : "";
     const orientation = estimate && Number.isFinite(estimate.yaw) ? poseUI.svgRotation(estimate.yaw) : 0;
     const estimateMarker = estimate ?
       `<circle class="vehicle-ring" cx="${x}" cy="${y}" r="${15 * unit}"/><g transform="translate(${x} ${y}) rotate(${orientation})"><rect class="vehicle-shape" x="${-8 * unit}" y="${-6 * unit}" width="${16 * unit}" height="${12 * unit}" rx="${3 * unit}"/>${simulation ? `<path class="vehicle-heading" d="M${2 * unit} ${-3 * unit} L${6 * unit} 0 L${2 * unit} ${3 * unit}"/>` : ""}</g>` : "";
@@ -709,6 +714,12 @@ function renderLiveVehicles() {
     const interaction = guest ? "" : ` data-object-kind="robots" data-object-id="${esc(id)}" tabindex="0" role="button" aria-label="车辆 ${esc(id)}"`;
     return `<g class="map-vehicle${guest ? "" : " map-item" + selected}"${interaction}><title>${esc([id, estimateText, truthText].filter(Boolean).join(" · "))}</title>${estimateMarker}${truthMarker}<text class="map-label" x="${x - 10 * unit}" y="${y + 22 * unit}" font-size="${10 * unit}">${esc(id)}</text></g>`;
   }).join("");
+  rtsVehicles = vehicles.map(({ id, estimate, truth }) => {
+    const [x, y] = pointXY(estimate || truth || {});
+    return { id, x, y };
+  }).filter((v) => Number.isFinite(v.x) && Number.isFinite(v.y));
+  renderSelectionBar();
+  rtsMap?.renderMinimap();
   const layer = $("robotMarkers");
   const focused = document.activeElement;
   const focusedId = focused?.parentElement === layer ? focused.dataset.objectId : null;
@@ -1220,19 +1231,23 @@ $("newOrderButton").addEventListener("click", () => {
 $("navigateForm").addEventListener("submit", (event) => {
   event.preventDefault();
   if ($("sendOrderButton").disabled) return;
-  action(async () => {
-    const content = { to: $("toPoint").value, robotId: selectedRobotId };
-    if (api.hasUnresolvedCreate?.() || PortalState.unresolved(receiptSnapshot).length)
-      throw new Error("有未决导航请求。请查询原 requestId，不能创建第二个意图。");
-    const destination = destinations().find(point => point.id === content.to);
-    if (!destination) throw new Error("目的站已不可用，请刷新模型并重新选择。");
-    if ([destination.id, destination.destination].includes(currentRobot()?.location))
-      throw new Error("目的站与车辆报告起点相同，请选择其他目的站。");
-    const result = await api.order({ ...content, requestId: api.id() });
-    log(`Order ${result.id} accepted. Awaiting vehicle execution feedback.`);
-    notify("请求已受理，等待车辆执行反馈。");
-  });
+  action(() => submitOrder($("toPoint").value));
 });
+// The one path that creates a navigation order, shared by the dispatch form and
+// the map's right-click command. Receipts and duplicate protection live in api.
+async function submitOrder(to) {
+  const content = { to, robotId: selectedRobotId };
+  if (api.hasUnresolvedCreate?.() || PortalState.unresolved(receiptSnapshot).length)
+    throw new Error("有未决导航请求。请查询原 requestId，不能创建第二个意图。");
+  const destination = destinations().find(point => point.id === content.to);
+  if (!destination) throw new Error("目的站已不可用，请刷新模型并重新选择。");
+  if ([destination.id, destination.destination].includes(currentRobot()?.location))
+    throw new Error("目的站与车辆报告起点相同，请选择其他目的站。");
+  const result = await api.order({ ...content, requestId: api.id() });
+  log(`Order ${result.id} accepted. Awaiting vehicle execution feedback.`);
+  notify("请求已受理，等待车辆执行反馈。");
+  return result;
+}
 for (const [id, operation] of [
   ["estopButton", "pause"],
   ["resumeButton", "resume"],
@@ -1266,16 +1281,7 @@ $("cancelOrder").addEventListener("click", () =>
 );
 $("refreshModel").addEventListener("click", () => loadModel(true));
 function zoom(factor) {
-  const w = camera.w * factor,
-    h = camera.h * factor;
-  if (w < fitCamera.w * 0.08 || w > fitCamera.w * 12) return;
-  camera = {
-    x: camera.x + (camera.w - w) / 2,
-    y: camera.y + (camera.h - h) / 2,
-    w,
-    h,
-  };
-  applyCamera();
+  rtsMap?.zoomBy(factor);
 }
 $("zoomIn").addEventListener("click", () => zoom(0.8));
 $("zoomOut").addEventListener("click", () => zoom(1.25));
@@ -1297,44 +1303,92 @@ for (const button of document.querySelectorAll("[data-map-focus]"))
     dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();
   });
 const svg = $("mapSvg");
-let drag = null;
-function localPoint(event) {
-  const p = svg.createSVGPoint();
-  p.x = event.clientX;
-  p.y = event.clientY;
-  return p.matrixTransform(svg.getScreenCTM().inverse());
+rtsSelectionBar = document.createElement("div");
+rtsSelectionBar.className = "rts-selection-bar";
+rtsSelectionBar.setAttribute("role", "status");
+$("warehouseMap").append(rtsSelectionBar);
+function renderSelectionBar() {
+  if (!rtsSelectionBar) return;
+  const live = new Set(rtsVehicles.map((v) => v.id));
+  mapSelection = mapSelection.filter((id) => live.has(id) || robots.some((r) => r.id === id));
+  const text = guestOverview() ? "" : mapSelection.length
+    ? `已选 ${mapSelection.length} 辆：${mapSelection.join("、")} · 右键工位派车 · Esc 取消选择`
+    : rtsVehicles.length ? "点选车辆，或 Shift+拖动框选 · 滚轮缩放 · 拖动平移" : "";
+  setIfChanged(rtsSelectionBar, "textContent", text);
+  rtsSelectionBar.hidden = !text;
 }
-svg.addEventListener("pointerdown", (event) => {
-  if (event.button !== 0 || event.target.closest(".map-item")) return;
-  drag = { id: event.pointerId, point: localPoint(event) };
-  svg.setPointerCapture(event.pointerId);
-  svg.classList.add("panning");
-});
-svg.addEventListener("pointermove", (event) => {
-  const p = localPoint(event);
-  if (drag && drag.id === event.pointerId) {
-    camera.x += drag.point.x - p.x;
-    camera.y += drag.point.y - p.y;
-    applyCamera();
-  }
-  if (model?.points.length)
-    $("mapCoordinates").textContent =
-      `X ${(p.x / 60).toFixed(2)} · Y ${(-p.y / 60).toFixed(2)} m`;
-});
-for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
-  svg.addEventListener(type, () => {
-    drag = null;
-    svg.classList.remove("panning");
+function setMapSelection(ids) {
+  mapSelection = [...new Set(ids)];
+  if (mapSelection.length === 1) {
+    selectedRobotId = mapSelection[0];
+    selectedObject = { kind: "robots", id: mapSelection[0] };
+  } else if (selectedObject?.kind === "robots") selectedObject = null;
+  render();
+}
+function stationLabel(id) {
+  const station = (model?.stations || []).find((s) => s.id === id);
+  return station?.label || station?.name || id;
+}
+function stationCommand(stationId, x, y) {
+  if (guestOverview()) return;
+  const plan = RtsMap.dispatchPlan(stationId, mapSelection, destinations());
+  const title = `派车到 ${stationLabel(stationId)}`;
+  if (plan.kind === "unavailable")
+    return RtsMap.commandCard({ x, y, title, lines: ["该工位当前不能作为目的站（已占用锁定，或不在已发布的运行模型里）。"] });
+  if (plan.kind === "no-selection")
+    return RtsMap.commandCard({ x, y, title, lines: ["先点选一辆车（或 Shift+拖动框选），再右键工位派车。"] });
+  const choices = plan.kind === "single" ? [plan.robotId] : plan.robotIds;
+  RtsMap.commandCard({
+    x, y, title, choices, confirmLabel: "派车",
+    lines: [
+      plan.kind === "single" ? `车辆：${plan.robotId}` : "一个工位一次派一辆车，请选择：",
+      "将通过 openTCS 下发导航订单；受理只代表订单已接收，到站以车辆反馈为准。",
+    ],
+    onConfirm: async (robotId, card) => {
+      if (busy) return card.setStatus("上一个请求还在等待回执。", "error");
+      selectedRobotId = robotId;
+      selectedObject = { kind: "robots", id: robotId };
+      renderControls();
+      if ($("sendOrderButton").disabled) return card.setStatus($("dispatchHint").textContent, "error");
+      let outcome = null;
+      await action(async () => { outcome = await submitOrder(plan.destination.id); });
+      if (outcome) card.done(`已受理：订单 ${outcome.id || ""}。等待车辆执行反馈。`, "ok");
+      else card.done(`未受理：${lastActionError || "请求失败"}`, "error");
+    },
   });
-svg.addEventListener(
-  "wheel",
-  (event) => {
-    if (!event.ctrlKey) return;
-    event.preventDefault();
-    zoom(event.deltaY < 0 ? 0.9 : 1.1);
+}
+rtsMap = window.RtsMap?.mount({
+  svg,
+  host: $("warehouseMap"),
+  getCamera: () => camera,
+  setCamera: (next) => { camera = next; applyCamera(); },
+  getFit: () => fitCamera,
+  unit: () => mapUnit,
+  canSelect: () => !guestOverview(),
+  vehicles: () => rtsVehicles,
+  getSelection: () => mapSelection,
+  setSelection: setMapSelection,
+  openDetails: (id) => { mapSelection = [id]; selectObject("robots", id); },
+  onStationCommand: stationCommand,
+  onPointer: (p) => {
+    if (model?.points.length)
+      $("mapCoordinates").textContent = `X ${(p.x / 60).toFixed(2)} · Y ${(-p.y / 60).toFixed(2)} m`;
   },
-  { passive: false },
-);
+  minimap: () => {
+    const shown = overviewMapModel() || { points: [], paths: [], stations: [] };
+    const byId = new Map(shown.points.filter(validXY).map((p) => [p.id, pointXY(p)]));
+    return {
+      points: [...byId.values(), ...shown.stations.filter(validXY).map(pointXY)],
+      paths: shown.paths.map((p) => [byId.get(p.source), byId.get(p.target)]).filter(([a, b]) => a && b),
+      stations: shown.stations.filter(validXY).map(pointXY),
+      vehicles: rtsVehicles.map((v) => ({ ...v, selected: mapSelection.includes(v.id) })),
+    };
+  },
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !mapSelection.length || document.querySelector("dialog[open], .rts-command-card")) return;
+  setMapSelection([]);
+});
 function clock() {
   $("sessionClock").textContent = new Date().toLocaleTimeString([], {
     hour: "2-digit",
