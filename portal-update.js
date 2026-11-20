@@ -289,7 +289,13 @@
         const result = await exchange(worker, {type: 'PORTAL_ACTIVATE'});
         if (!result.ok) throw Error(messages[result.code] || messages.UNAVAILABLE);
       }
-      root.location.replace(pinnedURL(root.location.href, status.release));
+      // This page's address is already pinned (replaceState at load), so the
+      // target often differs only by nothing at all; with a #route hash,
+      // location.replace() is then a same-document hash change that never
+      // reloads, leaving the bootstrap dialog up and the page blocked.
+      const target = pinnedURL(root.location.href, status.release);
+      if (target.split('#')[0] === root.location.href.split('#')[0]) root.location.reload();
+      else root.location.replace(target);
     } catch (error) { firstLoad.querySelector('p').textContent = error.message; button.disabled = false; }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true}); else start();

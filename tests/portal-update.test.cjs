@@ -95,6 +95,7 @@ function lifecycleBrowser({controlled=false,updated=false}={}){
  const listeners={},swListeners={},created=[],requests=[],navigations=[];
  const location=new URL('https://fleet.example/?sceneId=42'+(updated?'&portalRelease='+A+'&portalUpdatedFrom='+B:'')+'#/maps');
  location.replace=url=>navigations.push(url);
+ location.reload=()=>navigations.push('reload:'+location.href);
  class Element{
   constructor(tag){this.tagName=tag.toUpperCase();this.fields=new Map();this.children=[];this.disabled=false;}
   querySelector(selector){if(!this.fields.has(selector)){const child=new Element('button');child.parent=this;this.fields.set(selector,child);}return this.fields.get(selector);}
@@ -129,7 +130,10 @@ test('first uncontrolled load blocks business interaction until explicit entry i
  assert.deepEqual(h.navigations,[]);assert(h.requests.every(type=>type==='PORTAL_STATUS'));
  await dialog.querySelector('button').onclick();
  assert.equal(h.navigations.length,1);
- const next=new URL(h.navigations[0]);assert.equal(next.searchParams.get('sceneId'),'42');assert.equal(next.hash,'#/maps');assert.equal(next.searchParams.get('portalRelease'),A);
+ // The address is already pinned to this release, so entry must reload the
+ // document (a same-URL replace with a #route would only change the hash).
+ assert.ok(h.navigations[0].startsWith('reload:'));
+ const next=new URL(h.navigations[0].slice(7));assert.equal(next.searchParams.get('sceneId'),'42');assert.equal(next.hash,'#/maps');assert.equal(next.searchParams.get('portalRelease'),A);
 });
 test('late SRI error recovery dialog remains usable above bootstrap dialog',async()=>{
  const h=lifecycleBrowser();await h.listeners.DOMContentLoaded[0]();
