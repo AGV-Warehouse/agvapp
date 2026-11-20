@@ -81,6 +81,7 @@ function boot({hash='#/operations', pending=false, publishing=false, simulation=
       vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../live-vehicle-poses.js'),'utf8'),context);
     }
   }
+  for(const [file,name] of [['../src/shell/operator-view.js','OperatorView'],['../src/shell/home-panels.js','HomePanels']]){vm.runInNewContext(fs.readFileSync(path.join(__dirname,file),'utf8'),context);context.window[name]=context[name];}
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),context);
   return {elements,buttons,api:actualAPI?context.window.fleetPortalApi:api,snapshot,context,listeners,mounts,runMounts,scenarioMounts,replayMounts,historyMounts,network,updateGuards,updateReviewActions,finishBackground:()=>finishBackground?.(),tickGuest:()=>observationTicks.forEach(fn=>fn())};
 }
@@ -120,7 +121,7 @@ test('guest overview reads its own verified model and fresh pose without acquiri
   assert.equal(h.elements.get('sendOrderButton').disabled,true);
   assert.doesNotMatch(h.elements.get('attentionList').innerHTML,/当前仅可查询|请先登录操作员会话/);
   h.api.onState({upstreamOnline:false,upstreamAgeSeconds:90,robots:[],orders:[]});
-  assert.match(h.elements.get('attentionList').innerHTML,/车队反馈中断或上游过期/);
+  assert.match(h.elements.get('attentionList').innerHTML,/与车队的连接中断/);
   h.context.location.hash='#/fleet';h.listeners.hashchange();h.tickGuest();
   await new Promise(setImmediate);
   assert.equal(h.network.filter(({url})=>url.startsWith(endpoint)).length,3);
@@ -143,7 +144,7 @@ test('constructor receipt restoration is safe and locks the saved intent across 
   assert.equal(h.elements.get('dispatchRobot').disabled,true);
   assert.equal(h.elements.get('dispatchRobot').value,'R-old');
   assert.equal(h.elements.get('toPoint').value,'ST-old');
-  assert.match(h.elements.get('attentionList').innerHTML,/saved-id/);
+  assert.match(h.elements.get('attentionList').innerHTML,/派车请求结果未确认/);
 });
 test('a key without verified authorization never enables controls',async()=>{
   const h=boot({hash:'#/missions'});await new Promise(setImmediate);
@@ -213,7 +214,7 @@ test('production shell confirms deployment while its public map background GET i
 
 test('attention board is hidden when empty and remains visible for actual stale or disconnected state',async()=>{
  const h=boot();await new Promise(setImmediate);
- assert.equal(h.elements.get('attentionPanel').hidden,true);
+ assert.match(h.elements.get('attentionList').innerHTML,/一切正常/);
  h.api.onState({upstreamOnline:false,upstreamAgeSeconds:99,robots:[{id:'R1',online:false,stale:true}],orders:[]});
  assert.equal(h.elements.get('attentionPanel').hidden,false);assert.match(h.elements.get('attentionList').innerHTML,/中断|过期|离线/);
  const markup=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');assert.ok(!markup.includes('普通网页暂停不是安全急停；请求受理不表示车辆已停稳或执行完成。'));
@@ -226,7 +227,7 @@ test('replay portal context stays historical through live ticks and restores rea
  h.runMounts[0].options.onReplay({kind:'run',id:'old'});assert.equal(h.elements.get('staleBanner').hidden,true);
  assert.equal(h.elements.get('portalContext').hidden,true);assert.equal(h.elements.get('sidebarFleet').hidden,true);assert.equal(h.elements.get('sidebarModelTree').hidden,true);assert.equal(h.elements.get('viewTitle').textContent,'运行复盘');assert.equal(h.elements.get('replayContextNote').hidden,false);assert.equal(h.elements.get('attentionPanel').hidden,true);assert.match(h.elements.get('connectionPill').innerHTML,/非实时/);assert.equal(h.runMounts[0].view.readsPaused,true);assert.equal(h.scenarioMounts[0].view.readsPaused,true);
  h.api.onState({upstreamOnline:false,upstreamAgeSeconds:90,robots:[{id:'R1',online:false,stale:true}],orders:[]});assert.equal(h.elements.get('attentionPanel').hidden,true);assert.equal(h.elements.get('staleBanner').hidden,true);assert.match(h.elements.get('connectionPill').innerHTML,/历史记录视图/);
- h.replayMounts[0].view.close();assert.equal(h.elements.get('portalContext').hidden,false);assert.equal(h.elements.get('sidebarFleet').hidden,false);assert.equal(h.elements.get('sidebarModelTree').hidden,false);assert.equal(h.elements.get('viewTitle').textContent,'仿真工作台');assert.equal(h.elements.get('replayContextNote').hidden,true);assert.equal(h.elements.get('attentionPanel').hidden,false);assert.match(h.elements.get('connectionPill').innerHTML,/反馈不可用/);assert.equal(h.runMounts[0].view.readsPaused,false);assert.equal(h.elements.get('staleBanner').hidden,false);
+ h.replayMounts[0].view.close();assert.equal(h.elements.get('portalContext').hidden,false);assert.equal(h.elements.get('sidebarFleet').hidden,false);assert.equal(h.elements.get('sidebarModelTree').hidden,false);assert.equal(h.elements.get('viewTitle').textContent,'仿真工作台');assert.equal(h.elements.get('replayContextNote').hidden,true);assert.equal(h.elements.get('attentionPanel').hidden,false);assert.match(h.elements.get('connectionPill').innerHTML,/连接中断/);assert.equal(h.runMounts[0].view.readsPaused,false);assert.equal(h.elements.get('staleBanner').hidden,false);
 });
 test('scene background clears only on fresh explicit publication lifecycle change, not transient admission blockers',async()=>{
  const h=boot({publishing:true,simulation:true});await new Promise(setImmediate);

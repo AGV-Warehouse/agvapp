@@ -15,6 +15,8 @@ const setIfChanged = window.PortalI18n?.setIfChanged || ((el, prop, value) => (e
 const html = (id, value) => {
   setIfChanged($(id), "innerHTML", value);
 };
+// Server-side alerts (gateway alert stream); empty until the gateway provides them.
+let serverAlerts = [];
 let robots = [],
   orders = [],
   layout = null,
@@ -169,7 +171,24 @@ function log(message, error = false) {
   $("activityTabCount").textContent = events.length;
   $("activityEmpty").hidden = events.length > 0;
 }
+const OV = window.OperatorView;
+// Live context for operator wording: place names and who is waiting for whom.
+function operatorContext() {
+  const waiting = OV.waitingReasons(robots, window.TrafficOverlay?.blockingResource);
+  for (const [id, text] of Object.entries(waiting)) {
+    const robot = robots.find((r) => r.id === id);
+    const block = window.TrafficOverlay?.blockingResource(robot, robots);
+    if (block) waiting[id] = `等待 ${block.holder} 让出 ${OV.placeName(block.resource, { layout, model })}`;
+    else waiting[id] = text;
+  }
+  return { connected: connected(), orders, layout, model, waiting };
+}
+function placeName(id) { return OV.placeName(id, { layout, model }); }
 function badge(robot) {
+  const status = OV.vehicleStatus(robot, operatorContext());
+  return `<span class="status-badge ${status.tone}">${esc(status.label)}</span>`;
+}
+function rawBadge(robot) {
   const stale = !connected() || robot.stale;
   const label = stale
     ? "Stale"
@@ -197,31 +216,26 @@ function renderFleet() {
       ? robots.filter((r) => r.status === "EXECUTING" && !r.stale).length
       : 0
     : "—";
-  const alerts = robots.filter((r) => !online || !r.online || r.stale).length;
-  $("alertsCount").textContent = stateReceived ? alerts : "—";
-  $("attentionCaption").textContent = alerts
-    ? "请检查车辆反馈"
-    : stateReceived ? "按当前报告计算，非完整准入" : "尚未取得报告";
+  const context = operatorContext();
+  const activeOrders = orders.filter((o) => OV.orderState(o).active).length;
   $("vehicleNavCount").textContent = robots.length;
-  $("orderNavCount").textContent = orders.length;
-  $("orderNavCount").hidden = orders.length===0;
-  $("orderNavCount").title = "当前内核订单数量，不含历史记录";
-  $("fleetMode").textContent = `${robots.length} reported`;
+  $("orderNavCount").textContent = activeOrders;
+  $("orderNavCount").hidden = activeOrders === 0;
+  $("orderNavCount").title = "进行中的任务";
+  $("fleetMode").textContent = `${robots.length} 台`;
   $("connectionPill").className =
     `connection-pill ${online ? "connected" : stateReceived ? "disconnected" : ""}`;
   html(
     "connectionPill",
-    `<i></i><span>${online ? "内核反馈连通" : stateReceived ? "反馈不可用 / 已过期" : "等待连接"}</span>`,
+    `<i></i><span>${online ? "已连接" : stateReceived ? "连接中断" : "连接中"}</span>`,
   );
   $("sidebarStatus").className = `server-status ${online ? "connected" : ""}`;
   html(
     "sidebarStatus",
-    `<i></i>${online ? "Kernel connected" : "Awaiting live feedback"}`,
+    `<i></i>${online ? "车队已连接" : "等待车队状态"}`,
   );
   $("staleBanner").hidden = replayActive || !stateReceived || online;
-  $("footerState").textContent = online
-    ? "Live state · openTCS"
-    : "Waiting for current feedback";
+  $("footerState").textContent = online ? "实时" : "等待车队状态";
   const term = $("robotSearch").value.trim().toLowerCase(),
     visible = robots.filter((r) =>
       (r.id + " " + (r.name || "")).toLowerCase().includes(term),
@@ -231,17 +245,17 @@ function renderFleet() {
     visible
       .map(
         (r) =>
-          `<button class="robot-row ${selectedObject?.kind === "robots" && r.id === selectedObject.id ? "active" : ""}" data-robot-id="${esc(r.id)}"><span class="robot-avatar">${icon("robot")}</span><span><strong>${esc(r.id)}</strong><small>${esc(r.location || "位置未报告")}</small></span><i class="robot-dot ${!online || !r.online || r.stale ? "alert" : ""}"></i></button>`,
+          `<button class="robot-row ${selectedObject?.kind === "robots" && r.id === selectedObject.id ? "active" : ""}" data-robot-id="${esc(r.id)}"><span class="robot-avatar">${icon("robot")}</span><span><strong>${esc(r.id)}</strong><small>${esc(OV.vehicleStatus(r, context).label)} · ${esc(r.location ? placeName(r.location) : "位置未知")}</small></span><i class="robot-dot ${!online || !r.online || r.stale ? "alert" : ""}"></i></button>`,
       )
       .join("") ||
-      `<div class="sidebar-empty">${icon(term ? "search" : "robot")}<strong>${term ? "没有匹配车辆" : "尚无车辆报告"}</strong><p>${term ? "请尝试其他车辆名称。" : "车辆由管理接口报告后在此显示。"}</p></div>`,
+      `<div class="sidebar-empty">${icon(term ? "search" : "robot")}<strong>${term ? "没有匹配车辆" : "暂无车辆"}</strong><p>${term ? "请尝试其他车辆名称。" : "车辆接入后会显示在这里。"}</p></div>`,
   );
   html(
     "vehicleTable",
     robots
       .map(
         (r) =>
-          `<tr><td><button class="table-link" data-robot-id="${esc(r.id)}">${esc(r.id)}</button></td><td>${badge(r)}</td><td>${esc(r.location || "未知")}</td><td>${r.battery == null ? "未知" : esc(r.battery) + "%"}</td><td>${esc(r.task || "—")}</td></tr>`,
+          `<tr><td><button class="table-link" data-robot-id="${esc(r.id)}">${esc(r.id)}</button></td><td>${badge(r)}</td><td>${esc(r.location ? placeName(r.location) : "—")}</td><td>${esc(OV.batteryText(r))}</td><td>${esc(taskText(r, context))}</td></tr>`,
       )
       .join(""),
   );
@@ -254,18 +268,20 @@ function renderFleet() {
           .map((d) => d.locationName)
           .filter(Boolean)
           .join(" → ");
-        const created = o.creationTime
-          ? new Date(o.creationTime).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "—";
-        return `<tr><td title="${esc(o.name)}">${esc(o.name)}</td><td>${esc(o.processingVehicle || o.intendedVehicle || "Unassigned")}</td><td>${esc(destinations || "—")}</td><td><span class="status-badge ${o.state === "BEING_PROCESSED" ? "moving" : ""}">${esc(o.state || "未知")}</span></td><td>${esc(created)}</td></tr>`;
+        const created = OV.formatTime(o.creationTime);
+        const state = OV.orderState(o);
+        return `<tr><td title="${esc(o.name)}">${esc(o.name)}</td><td>${esc(o.processingVehicle || o.intendedVehicle || "待分配")}</td><td>${esc(destinations || "—")}</td><td><span class="status-badge ${state.tone}" title="${esc(o.state || "")}">${esc(state.label)}</span></td><td>${esc(created)}</td></tr>`;
       })
       .join(""),
   );
   $("ordersEmpty").hidden = orders.length > 0;
   $("ordersTabCount").textContent = orders.length;
+}
+function taskText(robot, context) {
+  const order = orders.find((o) => o.name === robot.task);
+  if (!order) return robot.task ? "执行任务" : "—";
+  const row = OV.orderSummary(order, context);
+  return `${row.to} · ${row.state}`;
 }
 function destinations() {
   const available = new Set(
@@ -282,10 +298,10 @@ function renderControls() {
     signedIn = api.authorized,
     writable = Boolean(receiptSnapshot.canWrite),
     ready = connected();
-  $("accessLabel").textContent = signedIn ? "操作员已登录" : "操作员登录";
+  $("accessLabel").textContent = signedIn ? "已登录" : "登录";
   $("inspectorAccess").textContent = signedIn
-    ? writable ? "操作员已登录" : "已登录 · 当前仅可查询"
-    : "仅查看 · 操作员登录后可操作";
+    ? writable ? "已登录" : "已登录 · 只能查看"
+    : "仅查看 · 登录后可操作";
   renderAccess();
   $("estopButton").disabled =
     busy || !ready || !signedIn || !writable || !robots.length;
@@ -316,30 +332,30 @@ function renderControls() {
     $("toPoint").innerHTML += `<option value="${esc(pendingCommand.destination)}">${esc(pendingCommand.destination)}（原请求，当前不可用）</option>`;
     $("toPoint").value = pendingCommand.destination;
   }
-  $("fromPoint").textContent = robot?.location || "车辆报告位置（未知）";
+  $("fromPoint").textContent = robot?.location ? placeName(robot.location) : "当前位置";
   let reason = !ready
     ? "等待当前车队反馈。"
     : !signedIn
-      ? "请先登录操作员会话，再提交导航请求。"
+      ? "登录后可派车。"
       : !writable
-        ? receiptSnapshot.writeBlockedReason || "当前连接仅可查询，尚不具备提交控制请求的条件。"
+        ? receiptSnapshot.writeBlockedReason || "当前账号只能查看。"
       : !robot
         ? "请选择车辆。"
         : !robot.online || robot.stale
-          ? "所选车辆离线或状态过期。"
+          ? "所选车辆离线。"
           : robot.paused
-            ? "所选车辆已有暂停请求。"
+            ? "所选车辆已暂停。"
             : !modelFresh
-              ? "请先刷新运行模型。"
+              ? "地图还未加载，请稍候。"
               : !choices.length
-                ? "配置目的站与运行模型没有可用匹配，请查看地图与发布。"
+                ? "当前地图没有可用工位。"
                 : busy
-                  ? "正在等待请求回执。"
+                  ? "正在提交…"
                     : publicationBlockReason || publicationSourceBlock
                     ? publicationBlockReason || publicationSourceBlock
                     : unresolved.length
-                    ? "有未决导航请求。请到事件与对账查询原 requestId；不创建第二个意图。"
-                    : "起点取车辆报告位置；当前仅导航 NOP。";
+                    ? "上一次派车结果还未确认，请先在历史记录中查看。"
+                    : "车辆从当前位置出发。";
   $("dispatchHint").textContent = reason;
   $("sendOrderButton").disabled =
     busy ||
@@ -370,7 +386,7 @@ function renderInspector() {
   $("inspectorEmpty").hidden = Boolean(object);
   $("objectDetails").hidden = !object;
   $("inspectorType").textContent = !object
-    ? "No selection"
+    ? "未选择"
     : {
         robots: "车辆",
         points: "点位",
@@ -378,7 +394,7 @@ function renderInspector() {
         stations: "停车工位",
       }[selectedObject.kind];
   if (!object) return;
-  $("selectedRobotName").textContent = object.label || object.id;
+  $("selectedRobotName").textContent = selectedObject.kind === "robots" ? object.id : placeName(object.id);
   html(
     "objectIcon",
     icon(
@@ -391,65 +407,51 @@ function renderInspector() {
   );
   let properties;
   if (selectedObject.kind === "robots") {
-    const state = badge(object);
-    html("robotState", state.replace(/^<span[^>]*>|<\/span>$/g, ""));
-    $("robotState").className =
-      "status-badge " +
-      (!connected() || object.stale || !object.online
-        ? "alert"
-        : object.status === "EXECUTING"
-          ? "moving"
-          : "online");
+    const status = OV.vehicleStatus(object, operatorContext());
+    $("robotState").textContent = status.label;
+    $("robotState").className = "status-badge " + status.tone;
     properties = [
-      ["当前位置", object.location || "未知"],
-      [
-        "坐标",
-        validXY(object)
-          ? `${number(object.x)}, ${number(object.y)} m`
-          : "未知",
-      ],
-      ["电量", object.battery == null ? "未知" : `${object.battery}%`],
-      [
-        "速度",
-        object.velocity == null ? "未知" : `${object.velocity} m/s`,
-      ],
-      ["Order", object.task || "未报告任务"],
-      ["处理状态", object.processingState || "未知"],
+      ["当前位置", object.location ? placeName(object.location) : "未知"],
+      ["当前任务", taskText(object, operatorContext())],
+      ["电量", OV.batteryText(object)],
     ];
+    if (OV.engineeringEnabled())
+      properties.push(
+        ["坐标", validXY(object) ? `${number(object.x)}, ${number(object.y)} m` : "未知"],
+        ["速度", object.velocity == null ? "未知" : `${object.velocity} m/s`],
+        ["订单号", object.task || "—"],
+        ["原始状态", `${object.status || "—"} / ${object.processingState || "—"}`],
+      );
   } else if (selectedObject.kind === "paths") {
-    $("robotState").textContent = object.locked === true ? "Locked" : "Path";
+    $("robotState").textContent = object.locked === true ? "已封锁" : "路线";
     $("robotState").className = "status-badge";
     properties = [
-      ["From", object.source],
-      ["To", object.target],
+      ["起点", placeName(object.source)],
+      ["终点", placeName(object.target)],
       [
-        "Length",
+        "长度",
         Number.isFinite(object.length)
           ? `${number(object.length)} m`
           : "未知",
       ],
       [
-        "Speed limit",
+        "限速",
         Number.isFinite(object.maxVelocity)
           ? `${number(object.maxVelocity)} m/s`
           : "未知",
       ],
-      ["Geometry", object.connectionType],
-      ["Source", "openTCS plant model"],
     ];
   } else {
-    $("robotState").textContent =
-      object.type || selectedObject.kind.slice(0, -1);
+    $("robotState").textContent = selectedObject.kind === "stations" ? "工位" : "点位";
     $("robotState").className = "status-badge";
     properties = [
       ["X", `${number(object.x)}${Number.isFinite(object.x) ? " m" : ""}`],
       ["Y", `${number(object.y)}${Number.isFinite(object.y) ? " m" : ""}`],
-      ["Source", "openTCS plant model"],
     ];
     if (object.links)
       properties.splice(2, 0, [
-        "Linked points",
-        object.links.join(", ") || "None",
+        "关联点位",
+        object.links.join(", ") || "无",
       ]);
   }
   html(
@@ -540,7 +542,8 @@ function renderMap() {
   } else lastRunOverlay = null;
   html("rtsOverlay", runOverlay);
   const map = displayedModel || { points: [], paths: [], stations: [] },
-    byId = new Map(map.points.map((p) => [p.id, p]));
+    byId = new Map(map.points.map((p) => [p.id, p])),
+    stationPoints = new Set(map.stations.flatMap((st) => st.links || []));
   if ($("mapSvg").clientWidth > 0 && $("mapSvg").clientHeight > 0)
     mapUnit = Math.max(
       fitCamera.w / $("mapSvg").clientWidth,
@@ -594,7 +597,9 @@ function renderMap() {
       .filter(validXY)
       .map((p) => {
         const [x, y] = pointXY(p);
-        return `<g ${attrs("points", p.id)}><circle class="point-shape" cx="${x}" cy="${y}" r="${radius}"/>${label(p.label || p.id, x + 8 * unit, y - 9 * unit)}</g>`;
+        // A point that belongs to a station is named by the station label only.
+        const named = stationPoints.has(p.id) ? "" : label(p.label || p.id, x + 8 * unit, y - 9 * unit);
+        return `<g ${attrs("points", p.id)}><circle class="point-shape" cx="${x}" cy="${y}" r="${radius}"/>${named}</g>`;
       })
       .join(""),
   );
@@ -757,6 +762,25 @@ function syncObservationRoute(route) {
   if (!!guestOverview() !== lastGuestOverview) renderMap();
   if (workbench) environmentView?.setVisible(true);
 }
+// Home: exceptions an operator must act on, and the task queue.
+function renderHome(engineeringItems) {
+  const context = operatorContext();
+  const retired = publicationStatus?.activePublication?.status === "RETIRED";
+  let items = OV.exceptions({
+    received: stateReceived, connected: connected(), robots, orders, waiting: context.waiting,
+    alerts: serverAlerts, unresolved: PortalState.unresolved(receiptSnapshot).length,
+    storageError: receiptSnapshot.storageError, loadError: bootError,
+    notReady: retired ? "仿真已停用，车辆暂不能接任务" : publicationBlockReason || publicationSourceBlock ? "地图版本未就绪，暂不能派车" : "",
+    context,
+  });
+  if (lastActionError) items.unshift({ level: "alert", text: "操作未完成：" + lastActionError, route: "events" });
+  // Signed in but not allowed to operate: the operator needs to know why.
+  if (api.authorized && receiptSnapshot.writeBlockedReason) items.push({ level: "warn", text: "只能查看：" + receiptSnapshot.writeBlockedReason, route: "events" });
+  if (OV.engineeringEnabled())
+    items = items.concat(engineeringItems.map((i) => ({ level: i.kind === "error" ? "alert" : "warn", text: "［工程］" + i.text, route: i.route })));
+  window.HomePanels?.render({ items, queue: OV.taskQueue(orders, context), formatTime: (t) => OV.formatTime(t) });
+  $("alertsCount").textContent = stateReceived ? items.length : "—";
+}
 function renderPortal() {
   const historyRoute=PortalState.route(location.hash);
   taskHistoryView?.setVisible(historyRoute==='missions'&&!replayActive);
@@ -790,8 +814,8 @@ function renderPortal() {
   if (publicationSourceBlock) items.unshift({ text:publicationSourceBlock,route:"maps" });
   if (receiptSnapshot.writeBlockedReason && (!guestOverview() || receiptSnapshot.storageError || !receiptSnapshot.deploymentConfirmed))
     items.unshift({ text: "当前仅可查询：" + receiptSnapshot.writeBlockedReason, route: "events" });
-  $("attentionPanel").hidden = items.length === 0;
-  html("attentionList", items.map(item => `<li class="${item.kind === "error" ? "attention-error" : ""}"><span>${esc(item.text)}</span> <a href="#/${item.route}">查看</a></li>`).join(""));
+  $("attentionPanel").hidden = false;
+  renderHome(items);
   const admittedRelease=publicationStatus?.currentAdmission?.ready===true ? publicationStatus.currentAdmission.releaseId : null;
   $("portalModelState").textContent = modelFresh ? `模型：${model?.name || "未命名"} · ${Math.floor((Date.now() - modelReadAt) / 1000)} 秒前读取${admittedRelease?"":"（发布版本未提供）"}` : modelError ? "模型：读取失败 / 不新鲜" : "模型：等待读取";
   if (admittedRelease) {
@@ -802,7 +826,8 @@ function renderPortal() {
     const activeProfile=publicationStatus?.releases?.find(r=>r.releaseId===admittedRelease)?.profileId;
     $("portalOriginState").textContent=`来源：隔离仿真 SIM · ${connectionCapabilities.targetId || "目标未提供"} · ${activeProfile || connectionCapabilities.profileId || "能力配置未提供"}`;
     const environmentLabel=connectionCapabilities.activeEnvironment?.label;
-    document.querySelector('.environment-label').textContent=environmentLabel?`SIM · ${environmentLabel}`:"SIM · 隔离仿真";
+    document.querySelector('.environment-label').textContent="仿真";
+    document.querySelector('.environment-label').title=environmentLabel||"仿真环境";
   }
   $("portalSessionState").textContent = api.authorized
     ? receiptSnapshot.canWrite ? "操作员已登录 · 可提交操作" : "操作员已登录 · 当前仅可查询"
@@ -816,6 +841,7 @@ const api = new FleetAPI(
     stateReceived = true;
     robots = state.robots || [];
     orders = state.orders || [];
+    if (Array.isArray(state.alerts)) serverAlerts = state.alerts;
     upstreamOnline = Boolean(state.upstreamOnline);
     upstreamAgeSeconds = Number.isFinite(state.upstreamAgeSeconds) ? state.upstreamAgeSeconds : null;
     lastStateAt = Date.now();
@@ -881,8 +907,8 @@ receiptView = window.CommandReceipts?.mount($("receiptView"), api) || null;
 portalReady = true;
 function initializeServerHistory(){
   if(!window.ServerHistoryUI||!receiptSnapshot.deploymentConfirmed)return;
-  if(!taskHistoryView)taskHistoryView=window.ServerHistoryUI.mount($("serverTasksHistory"),api,{kind:'tasks',onReplay:openReplay});
-  if(!eventHistoryView)eventHistoryView=window.ServerHistoryUI.mount($("serverEventsHistory"),api,{kind:'events',onReplay:openReplay,onTask(target){setView('missions');taskHistoryView.controller.submit({q:target.q});}});
+  if(!taskHistoryView)taskHistoryView=window.ServerHistoryUI.mount($("serverTasksHistory"),api,{kind:'tasks',onReplay:openReplay,vehicles:()=>robots.map(r=>r.id)});
+  if(!eventHistoryView)eventHistoryView=window.ServerHistoryUI.mount($("serverEventsHistory"),api,{kind:'events',vehicles:()=>robots.map(r=>r.id),onReplay:openReplay,onTask(target){setView('missions');taskHistoryView.controller.submit({q:target.q});}});
 }
 initializeServerHistory();
 function initializeEnvironment(){
@@ -1048,18 +1074,19 @@ function setView(view, updateHash = true) {
     return;
   }
   const copy = {
-    operations: ["运行总览", "实时运行概况，数据来源与更新时间可查。"],
-    fleet: ["车辆与连接", "在线、定位、版本就绪与允许接单不是同一个状态。"],
-    missions: ["搬运任务", "检索服务器记录的导航任务与操作，查看结果、处理原因和历史回放。"],
-    events: ["事件与对账", "按车辆、时间和事件来源检索服务器记录，关联任务并查看处理过程。"],
-    maps: ["地图与发布", "编辑与冻结地图草稿，受控发布到当前隔离仿真并核对版本与准入。"],
-    simulation: ["仿真工作台", "准备服务、发布场景、下达任务，在真实 3D 画面和运行记录中核对结果。"],
+    operations: ["运行总览", "地图、异常和任务队列。"],
+    fleet: ["车辆", "每台车的当前状态、位置和电量。"],
+    missions: ["任务", "进行中和已完成的任务。"],
+    events: ["历史记录", "按车辆和时间查看发生过的事件。"],
+    maps: ["地图与发布", "编辑地图并发布到仿真。"],
+    simulation: ["仿真工作台", "启动仿真、注入故障、回放运行。"],
   };
+  if (OV.ENGINEERING_ROUTES.has(route) && !OV.engineeringEnabled()) OV.setEngineering(true);
   view = {operations:"overview", fleet:"vehicles", missions:"orders", events:"activity", maps:"maps", simulation:"simulation"}[route];
   $("workspace").dataset.view = view;
   $("workspace").dataset.route = route;
   $("headerView").textContent = $("viewTitle").textContent = copy[route][0];
-  document.title = "Fleetserver · " + copy[route][0];
+  document.title = "AGV 车队 · " + copy[route][0];
   $("viewDescription").textContent = copy[route][1];
   document.querySelectorAll(".nav-item[data-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === route);
@@ -1175,6 +1202,12 @@ $("activityTab").addEventListener("click", () => setDataTab("activity"));
 $("detailsTab").addEventListener("click", () => setInspectorTab("details"));
 $("dispatchTab").addEventListener("click", () => setInspectorTab("dispatch"));
 $("accessButton").addEventListener("click", openAccess);
+OV.setEngineering(OV.engineeringEnabled());
+$("engineeringToggle").addEventListener("click", () => {
+  const enabled = OV.setEngineering(!OV.engineeringEnabled());
+  if (!enabled && OV.ENGINEERING_ROUTES.has(PortalState.route(location.hash))) setView("operations");
+  else render();
+});
 $("inspectorAccessButton").addEventListener("click", openAccess);
 $("mapSetupButton").addEventListener("click", () =>
   $("setupDialog").showModal(),
@@ -1446,18 +1479,12 @@ document.addEventListener("keydown", (event) => {
   setMapSelection([]);
 });
 function clock() {
-  $("sessionClock").textContent = new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  $("sessionClock").textContent = OV.formatTime(new Date(), { date: false });
   $("dataFreshness").textContent =
     connected() && lastStateAt
-      ? "Live · updated " +
-        (Date.now() - lastStateAt < 5000
-          ? "just now"
-          : Math.floor((Date.now() - lastStateAt) / 1000) + "s ago")
+      ? "实时 · " + (Date.now() - lastStateAt < 5000 ? "刚刚更新" : Math.floor((Date.now() - lastStateAt) / 1000) + " 秒前更新")
       : stateReceived
-        ? "反馈过期"
+        ? "状态已过期"
         : "等待车队状态";
   if (portalReady) renderPortal();
 }

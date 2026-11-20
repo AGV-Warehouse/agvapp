@@ -65,12 +65,12 @@ test('hidden and destroyed views never accept late query data and authorization 
 
 test('event filters and dates preserve semantic source gaps and escape original evidence',()=>{
  assert.equal(normalizeFilters({kind:'command',outcome:'FAILED'},'events').kind,'command');assert.equal(normalizeFilters({limit:500}).limit,20);
- const local='2026-11-10T08:30';assert.equal(localToISO(local),new Date(local).toISOString());assert.equal(isoToLocal(localToISO(local)),local);
+ const local='2026-11-10 08:30';assert.equal(localToISO(local),new Date(local).toISOString());assert.equal(isoToLocal(localToISO(local)),local);
  const html=itemHTML({label:'<script>bad</script>',kind:'run',recordedAt:'2026-11-10T10:00:00Z',at:'2026-11-10T09:00:00Z',sourceTime:null,runId:'run-a',summary:'等待通行',details:{unsafe:'<img onerror=x>'}},0,'events',{onReplay(){},onTask(){}});
- assert.match(html,/来源时间：未提供（不能据此判断物理发生时间）/);assert.match(html,/记录时间/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<img|<script>/);assert.match(html,/<details class="history-evidence">/);assert.doesNotMatch(html,/<details[^>]*open/);assert.match(html,/复盘此任务/);assert.match(html,/查看关联任务/);
- const task=itemHTML({kind:'command',outcome:'ACCEPTED'},0,'tasks',{onReplay(){}});assert.match(task,/已受理，执行结果待核实/);assert.doesNotMatch(task,/data-history-replay/);
- const known=itemHTML({status:'EXECUTION_COMPLETED',vehicleName:'记录时的车名',robotId:'technical-id',destinationLabel:'记录时的终点',destination:'technical-station'},0,'events',{});const main=known.split('<details')[0];assert.match(main,/作业方案已完成（历史记录）/);assert.match(main,/记录时的车名 → 记录时的终点/);assert.doesNotMatch(main,/EXECUTION_COMPLETED|technical-id|technical-station/);
- assert.match(itemHTML({status:'NEW_INTERNAL_STATE'},0,'events',{}).split('<details')[0],/历史状态/);
+ assert.match(html,/无来源时间/);assert.match(html,/记录时间/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<img|<script>/);assert.match(html,/<details class="history-evidence eng-only">/);assert.doesNotMatch(html,/<details[^>]*open/);assert.match(html,/复盘此任务/);assert.match(html,/查看关联任务/);
+ const task=itemHTML({kind:'command',outcome:'ACCEPTED'},0,'tasks',{onReplay(){}});assert.match(task,/已受理/);assert.doesNotMatch(task,/data-history-replay/);
+ const known=itemHTML({status:'EXECUTION_COMPLETED',vehicleName:'记录时的车名',robotId:'technical-id',destinationLabel:'记录时的终点',destination:'technical-station'},0,'events',{});const main=known.split('<details')[0];assert.match(main,/方案已完成/);assert.match(main,/记录时的车名 → 记录时的终点/);assert.doesNotMatch(main,/EXECUTION_COMPLETED|technical-id|technical-station/);
+ assert.match(itemHTML({status:'NEW_INTERNAL_STATE'},0,'events',{}).split('<details')[0],/已记录/);
 });
 
 function fakeContainer(){
@@ -96,7 +96,7 @@ test('mount keeps form nodes and in-progress typing while querying; callbacks on
  click({target:{closest:()=>({dataset:{historyReplay:'0'}})}});assert.deepEqual(replays,[{kind:'run',id:'run-a'}]);
  click({target:{closest:()=>({dataset:{historyTask:'0'}})}});assert.equal(tasks[0].q,'run-a');
  client.authorized=false;view.authorizationChanged();click({target:{closest:()=>({dataset:{historyReplay:'0'}})}});assert.equal(replays.length,1);assert.deepEqual(view.controller.state.items,[]);
- assert.match(fixture.container.innerHTML,/查询记录/);assert.match(fixture.container.innerHTML,/车辆（精确匹配）/);assert.doesNotMatch(fixture.container.innerHTML,/取消任务|重试|恢复任务|data-run-action/);view.destroy();
+ assert.match(fixture.container.innerHTML,/查询/);assert.match(fixture.container.innerHTML,/全部车辆/);assert.doesNotMatch(fixture.container.innerHTML,/取消任务|重试|恢复任务|data-run-action/);view.destroy();
 });
 
 test('submitting an associated task while hidden clears the old page and queries the new filter on entry',async()=>{const calls=[];const c=new Controller(api(async path=>{calls.push(path);return response([{id:path.includes('new-run')?'new-run':'old'}]);}),{visible:true,storage:null});await c.submit();c.setVisible(false);await c.submit({q:'new-run'});assert.equal(c.state.loaded,false);assert.deepEqual(c.state.items,[]);c.setVisible(true);await new Promise(setImmediate);assert.equal(c.state.items[0].id,'new-run');assert.equal(calls.length,2);});
@@ -105,5 +105,5 @@ test('submitting an associated task while hidden clears the old page and queries
 test('closed unsuccessful session is filterable and never labelled active or successful',()=>{
  assert.equal(normalizeFilters({outcome:'CLOSED'}).outcome,'CLOSED');
  const html=itemHTML({id:'run:closed',kind:'run',label:'历史任务',outcome:'CLOSED',state:'ACCEPTED'},0,'tasks',{});
- assert.match(html,/故障会话已结案，未成功到站/);assert.doesNotMatch(html,/进行中（历史记录）/);
+ assert.match(html,/已结束，未到站/);assert.doesNotMatch(html,/进行中（历史记录）/);
 });

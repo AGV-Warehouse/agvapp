@@ -95,6 +95,7 @@
   root.history.replaceState(root.history.state, '', pinnedURL(updateNotice.href, release));
   const guards = new Map(), reviewActions = new Map();
   const bootstrapping = !root.navigator.serviceWorker.controller;
+  let updateOffered = false;
   let ready = root.location.pathname === '/example.html', registration = null, panel = null, firstLoad = null, checking = false, lastCheck = 0;
   if (bootstrapping) for (const type of ['click', 'pointerdown', 'keydown', 'beforeinput', 'submit']) {
     document.addEventListener(type, event => {
@@ -168,20 +169,24 @@
     const state = controller.state;
     const status = panel.querySelector('[data-update-message]');
     const action = panel.querySelector('[data-update-apply]');
-    panel.querySelector('[data-update-version]').textContent = updateNotice.updated ? '网页已更新 · 查看版本' : '网页版本与更新';
+    panel.querySelector('[data-update-version]').textContent = state.available ? '有新版本' : updateNotice.updated ? '已更新到新版本' : '版本 ' + release.slice(0, 8);
+    if (panel.dataset) panel.dataset.available = String(Boolean(state.available));
     panel.querySelector('[data-update-identifier]').textContent = '当前网页版本：' + release.slice(0, 8);
     status.textContent = state.message || (state.available ?
-      '新版已完整校验。更新会重载当前页面及其编辑器。有效的操作员登录可继续使用，原请求不会自动重发。' :
-      '当前页面保持此版本。检查更新不会启动仿真或重发请求。');
+      '新版本已准备好。更新会重新加载此页，登录状态保留。' :
+      '当前已是可用版本。');
     action.hidden = !state.available; action.disabled = state.busy;
-    action.textContent = state.busy ? '正在更新…' : '一键更新此页';
+    action.textContent = state.busy ? '正在更新…' : '更新此页';
     panel.querySelector('[data-update-check]').disabled = checking || state.busy;
     const review = state.needsReview ? ownerUpdates().reviewAction?.() : null;
     const reviewButton = panel.querySelector('[data-update-review]');
-    reviewButton.hidden = !review; reviewButton.textContent = review?.label || '前往核对原请求'; reviewButton.disabled = state.busy;
-    if (state.available || state.message) panel.open = true;
+    reviewButton.hidden = !review; reviewButton.textContent = review?.label || '查看未完成的操作'; reviewButton.disabled = state.busy;
+    // In the header the panel is a popover: open it only when there is something to do.
+    const inHeader = panel.parentElement?.id === 'portalUpdateSlot';
+    if (inHeader ? state.needsReview || (state.available && !updateOffered) : state.available || state.message) panel.open = true;
+    if (state.available) updateOffered = true;
     if (firstLoad) {
-      firstLoad.querySelector('p').textContent = state.message || '首次打开需要准备完整网页。进入后仍需验证连接权限；不会启动仿真或重发任务。';
+      firstLoad.querySelector('p').textContent = state.message || '首次打开需要下载网页，请稍候…';
     }
   }
   function observeInstalling(worker) {
@@ -220,8 +225,9 @@
   async function start() {
     panel = document.createElement('details'); panel.className = 'portal-update-panel';
     panel.setAttribute('aria-label', '网页版本与更新');
-    panel.innerHTML = '<summary><span data-update-version></span></summary><p data-update-message role="status"></p><div><button type="button" class="button" data-update-check>检查更新</button><button type="button" class="button button-primary" data-update-apply hidden>一键更新此页</button><button type="button" class="button" data-update-review hidden>前往核对原请求</button></div><small data-update-identifier></small>';
-    document.body.append(panel); render();
+    panel.innerHTML = '<summary><span data-update-version></span></summary><div class="portal-update-body"><p data-update-message role="status"></p><div><button type="button" class="button" data-update-check>检查更新</button><button type="button" class="button button-primary" data-update-apply hidden>更新此页</button><button type="button" class="button" data-update-review hidden>查看未完成的操作</button></div><small data-update-identifier></small></div>';
+    // Pages with a header slot keep the control there instead of floating over content.
+    (document.getElementById('portalUpdateSlot') || document.body).append(panel); render();
     if (updateNotice.updated) {
       const focusNotice = () => { if (!document.querySelector('dialog[open]')) panel.querySelector('summary').focus({preventScroll: true}); };
       const dialog = document.querySelector('dialog[open]');
@@ -229,7 +235,7 @@
     }
     if (bootstrapping) {
       firstLoad = document.createElement('dialog'); firstLoad.className = 'portal-first-load';
-      firstLoad.innerHTML = '<h2>准备完整网页版本</h2><p>正在下载并校验网页资源…</p><button type="button" class="button button-primary" disabled>进入已校验工作区</button><button type="button" class="button" data-bootstrap-check>重新检查</button>';
+      firstLoad.innerHTML = '<h2>正在加载 AGV 车队</h2><p>首次打开需要下载网页，请稍候…</p><button type="button" class="button button-primary" disabled>进入</button><button type="button" class="button" data-bootstrap-check>重试</button>';
       firstLoad.addEventListener('cancel', event => event.preventDefault());
       firstLoad.querySelector('button').onclick = enterFirstLoad;
       firstLoad.querySelector('[data-bootstrap-check]').onclick = async () => { await check(true); await checkFirstLoad(); };
@@ -276,7 +282,7 @@
     try {
       const status = await exchange(worker, {type: 'PORTAL_STATUS'});
       firstLoad.querySelector('button').disabled = !(status.ok && status.protocol === 1 && validRelease(status.release));
-      if (status.ok) firstLoad.querySelector('p').textContent = '完整网页已校验。点击进入工作区；不会启动仿真或重发任务。';
+      if (status.ok) firstLoad.querySelector('p').textContent = '加载完成。';
     } catch (_) { showFailure(); }
   }
   async function enterFirstLoad() {

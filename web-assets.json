@@ -44,6 +44,8 @@
   "src/pages/simulation/environment-ui.js",
   "src/pages/simulation/fault-ui.js",
   "src/pages/simulation/overview-video.js",
+  "src/shell/home-panels.js",
+  "src/shell/operator-view.js",
   "styles.css",
   "sw.js",
   "web-assets.json"

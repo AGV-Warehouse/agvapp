@@ -2546,3 +2546,86 @@ rect.traffic-held{stroke:none}
 .traffic-alerts{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 420px);padding:7px 12px;border-radius:7px;background:#fff7e6;border:1px solid #e8a33d;color:#7a4b00;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 .traffic-alerts[data-level="alert"]{background:#fdecec;border-color:#d64545;color:#a11d1d}
 @media(max-width:700px){.traffic-alerts{max-width:calc(100% - 24px);bottom:64px}}
+
+/* ---- Operator shell -------------------------------------------------------
+ * Operators see status, exceptions and tasks. Map publishing, simulation and
+ * diagnostics (.eng-only) appear only in engineering mode (header switch). */
+html:not(.engineering-mode) .eng-only{display:none!important}
+.brand-name{font-size:17px;font-weight:650;letter-spacing:-.2px;white-space:nowrap}
+.engineering-toggle{font-size:12px}
+.engineering-toggle[aria-pressed="true"]{background:#fff4e0;border-color:#e7b765;color:#8a5a00}
+html.engineering-mode .app-header{box-shadow:inset 0 -2px 0 #e7b765}
+.sidebar-label.eng-only{margin:18px 0 6px;padding:0 12px}
+.nav-item .nav-alert{background:#e8eefb;color:#2c4d8f}
+.nav-item .nav-alert[data-level="alert"]{background:#fde7e7;color:#b42318}
+.nav-item .nav-alert[data-level="warn"]{background:#fff1d6;color:#8a5a00}
+.panel-heading h2{font-size:13px}
+.metric-label{font-size:12px}
+.workspace-heading{margin-bottom:16px}
+.workspace[data-route="operations"] .fleet-summary{padding:12px 0}
+.fleet-summary strong{font-size:24px}
+/* Home: map left, exceptions + task queue right. */
+.home-side{display:none}
+.workspace[data-view="overview"] .operations-grid{grid-template-columns:minmax(0,1fr) 340px!important;align-items:start}
+.workspace[data-view="overview"] .home-side{display:flex;flex-direction:column;gap:15px;min-width:0}
+.workspace[data-view="overview"] .map-panel{grid-column:1;grid-row:1}
+.workspace[data-view="overview"] .home-side{grid-column:2;grid-row:1}
+@media(max-width:1100px){.workspace[data-view="overview"] .operations-grid{grid-template-columns:minmax(0,1fr)!important}.workspace[data-view="overview"] .home-side{grid-column:1;grid-row:2}}
+.home-side .panel-heading{height:44px}
+.count-chip{min-width:22px;height:20px;padding:0 7px;border-radius:10px;display:inline-grid;place-items:center;font-size:12px;font-weight:600;background:#e9f6ef;color:#17784f}
+.count-chip[data-level="warn"]{background:#fff1d6;color:#8a5a00}
+.count-chip[data-level="alert"]{background:#fde7e7;color:#b42318}
+.attention-panel{padding:0}
+.attention-panel[data-level="alert"]{border-color:#f2b8b5}
+.attention-list,.task-queue{list-style:none;margin:0;padding:6px 0;max-height:300px;overflow:auto}
+.attention-list li{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 16px;font-size:13px;line-height:1.45;color:#26364d}
+.attention-list li i{width:8px;height:8px;border-radius:50%;background:#d5a156}
+.attention-list li.is-alert i{background:#d64545}
+.attention-list li a{font-size:12px;color:#3969d8}
+.attention-list .attention-empty,.task-queue .task-empty{display:block;padding:14px 16px;color:#5f8f73;font-size:13px}
+.task-queue .task-empty{color:#7b889c}
+.panel-link{font-size:12px;color:#3969d8;text-decoration:none}
+.task-row{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 16px;border-top:1px solid #eef2f7;font-size:13px}
+.task-row:first-child{border-top:0}
+.task-vehicle{font-weight:600;color:#26364d;font-size:12px}
+.task-main{display:flex;flex-direction:column;min-width:0}
+.task-main strong{font-weight:600;color:#1d2a3d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-main small{font-size:12px;color:#66768c}
+.task-row.tone-moving small{color:#2f6fe4}
+.task-row.tone-waiting small{color:#a5670b}
+.task-row.tone-alert small{color:#b42318}
+.task-row.tone-done small{color:#2c8a5b}
+.task-row time{font-size:12px;color:#8693a6;font-variant-numeric:tabular-nums}
+.task-row .task-raw{grid-column:1/-1;font-size:11px;color:#7b889c}
+.task-row .task-raw code{overflow-wrap:anywhere}
+.task-queue-subtitle{font-size:12px;font-weight:600;color:#6a7a90;margin:4px 16px 0;padding-top:8px;border-top:1px solid #e3e9f1}
+.task-recent .task-row{opacity:.85}
+.status-badge.waiting{background:#fff1d6;color:#8a5a00}
+.status-badge.done{background:#e9f6ef;color:#17784f}
+.status-badge.queued{background:#eef2f8;color:#43556f}
+.status-badge.muted{background:#f1f3f6;color:#6b778a}
+/* Version and update control lives in the header instead of floating over content. */
+.portal-update-slot{display:inline-flex;position:relative}
+.portal-update-slot .portal-update-panel{position:static;width:auto;padding:0;border:0;box-shadow:none;background:none;font-size:12px}
+.portal-update-slot .portal-update-panel summary{font-weight:500;color:#5b6b82;list-style:none;padding:6px 8px;border-radius:6px}
+.portal-update-slot .portal-update-panel summary::-webkit-details-marker{display:none}
+.portal-update-slot .portal-update-panel[data-available="true"] summary{background:#e8f0ff;color:#2556c4;font-weight:600}
+/* First load: a small, styled splash instead of a bare browser dialog. */
+dialog.portal-first-load{border:0;border-radius:14px;padding:28px 30px;width:min(420px,90vw);box-shadow:0 20px 60px #0f1d3340;font-family:inherit;color:#1d2a3d}
+dialog.portal-first-load::backdrop{background:#16243acc}
+dialog.portal-first-load h2{font-size:18px;margin:0 0 8px}
+dialog.portal-first-load p{font-size:13px;color:#5b6b82;line-height:1.6;margin:0 0 18px}
+dialog.portal-first-load .button{margin-right:8px}
+.portal-update-slot .portal-update-panel>.portal-update-body{display:none}
+.portal-update-slot .portal-update-panel[open]>.portal-update-body{display:block;position:absolute;right:0;top:calc(100% + 6px);z-index:950;width:min(380px,90vw);background:#fff;border:1px solid #c9d6e5;border-radius:10px;box-shadow:0 8px 24px #1c304030;padding:10px 14px}
+.portal-update-body>div{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.portal-update-body small{color:#7b889c}
+.workspace[data-route="operations"]>.fleet-summary{order:2;margin:0 0 15px}
+.workspace[data-route="operations"]>.operations-grid{order:3;margin-top:0}
+html:not(.engineering-mode) #backgroundCaption{display:none!important}
+.workspace[data-route="missions"] .home-side{display:block;grid-column:1/-1;margin-bottom:15px}
+.workspace[data-route="missions"] #attentionPanel{display:none}
+.workspace[data-route="missions"] .task-queue{max-height:none}
+.history-outcome.done{color:#17784f}.history-outcome.alert{color:#b42318}
+table th{font-size:11px}table td{font-size:13px}
+.robot-row small{font-size:11px}
