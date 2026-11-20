@@ -18,24 +18,31 @@
     const drive = drives[order.currentDriveOrderIndex] || drives.find(d => d?.state !== 'FINISHED') || null;
     const steps = Array.isArray(drive?.route?.steps) ? drive.route.steps : [];
     const at = robot.location;
-    // openTCS reports the step being travelled; fall back to the reported point.
-    let start = Number.isInteger(order.currentRouteStepIndex) && order.currentRouteStepIndex >= 0 &&
-      drive === drives[order.currentDriveOrderIndex] ? order.currentRouteStepIndex : steps.findIndex(s => s.sourcePoint === at);
-    if (start < 0) {
+    // Take whichever is further along: the step openTCS reports as travelled,
+    // or the step that starts at the vehicle's reported point.
+    const reported = Number.isInteger(order.currentRouteStepIndex) && drive === drives[order.currentDriveOrderIndex]
+      ? order.currentRouteStepIndex : -1;
+    let fromPoint = steps.findIndex(s => s.sourcePoint === at);
+    if (fromPoint < 0) {
       const arrived = steps.findIndex(s => s.destinationPoint === at);
-      start = arrived >= 0 ? arrived + 1 : 0;
+      fromPoint = arrived >= 0 ? arrived + 1 : 0;
     }
+    const start = Math.max(reported, fromPoint);
     return steps.slice(start).map(s => ({path: s.path, from: s.sourcePoint, to: s.destinationPoint}));
   }
 
-  // The first resource the vehicle has claimed but not been granted, and the
-  // other vehicle that currently holds it (openTCS allocation is exclusive).
+  // The first resource, in route order, that the vehicle has claimed but not
+  // been granted and that another vehicle currently holds (openTCS allocation
+  // is exclusive). openTCS requests a set at a time, e.g. [R-3:reverse, P-3],
+  // so the held one may not be the very first name.
   function blockingResource(robot, robots) {
     const allocated = new Set(robot?.allocated || []);
-    const next = (robot?.claimed || []).find(name => !allocated.has(name));
-    if (!next) return null;
-    const holder = (robots || []).find(other => other !== robot && (other.allocated || []).includes(next));
-    return holder ? {resource: next, holder: holder.id} : null;
+    for (const name of robot?.claimed || []) {
+      if (allocated.has(name)) continue;
+      const holder = (robots || []).find(other => other !== robot && (other.allocated || []).includes(name));
+      if (holder) return {resource: name, holder: holder.id};
+    }
+    return null;
   }
 
   // One plain-language status per vehicle, most serious first.

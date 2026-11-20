@@ -49,3 +49,9 @@ test('render draws route, held resources and the wait note from model geometry o
   assert.match(svg, /traffic-wait-link/);
   assert.doesNotMatch(T.render({robots: [{id: 'X', online: true}], orders: [], geometry: {points, paths}}), /traffic-route/);
 });
+
+test('live case: the held point inside a requested set is found (LAB-03 waits for P-3)', () => {
+  const lab01 = {id: 'LAB-01', online: true, task: 'a', status: 'EXECUTING', allocated: ['R-1', 'P-2', 'P-3', 'R-2'], claimed: ['P-7']};
+  const lab03 = {id: 'LAB-03', online: true, task: 'b', status: 'EXECUTING', allocated: ['R-3', 'S-3', 'P-4'], claimed: ['R-3:reverse', 'P-3', 'R-2:reverse', 'P-2']};
+  assert.equal(T.status(lab03, [lab01, lab03], []).text, '等待 LAB-01 让出 P-3');
+});
