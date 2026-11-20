@@ -181,9 +181,12 @@ function operatorContext() {
     if (block) waiting[id] = `等待 ${block.holder} 让出 ${OV.placeName(block.resource, { layout, model })}`;
     else waiting[id] = text;
   }
-  return { connected: connected(), orders, layout, model, waiting };
+  return { connected: connected(), orders, robots, layout, model, waiting };
 }
 function placeName(id) { return OV.placeName(id, { layout, model }); }
+// The gateway supports station tasks and alerts when it lists their commands.
+function supports(command) { return (connectionCapabilities || api.capabilities)?.commands?.includes(command) === true; }
+function canOperate() { return Boolean(api.authorized && receiptSnapshot.canWrite); }
 function badge(robot) {
   const status = OV.vehicleStatus(robot, operatorContext());
   return `<span class="status-badge ${status.tone}">${esc(status.label)}</span>`;
@@ -255,7 +258,7 @@ function renderFleet() {
     robots
       .map(
         (r) =>
-          `<tr><td><button class="table-link" data-robot-id="${esc(r.id)}">${esc(r.id)}</button></td><td>${badge(r)}</td><td>${esc(r.location ? placeName(r.location) : "—")}</td><td>${esc(OV.batteryText(r))}</td><td>${esc(taskText(r, context))}</td></tr>`,
+          `<tr><td><button class="table-link" data-robot-id="${esc(r.id)}">${esc(r.id)}</button></td><td>${badge(r)}</td><td>${esc(r.location ? placeName(r.location) : "—")}</td><td title="${esc(OV.batterySourceText(r))}">${esc(OV.batteryText(r))}${r.batterySource === "SIMULATION_MODEL" ? '<small class="battery-source">仿真</small>' : ""}</td><td>${esc(taskText(r, context))}</td></tr>`,
       )
       .join(""),
   );
@@ -309,11 +312,16 @@ function renderControls() {
   $("newOrderButton").disabled = busy || !ready || !robots.length;
   const choices = destinations(),
     oldDestination = pendingCommand?.destination || $("toPoint").value;
+  const stationTasks = supports("create_transport_order"), kind = $("taskKind").value;
+  $("taskKindRow").hidden = !stationTasks;
+  $("pickupRow").hidden = !stationTasks || kind !== "pickdrop";
+  $("toPointLabel").textContent = kind === "pickdrop" && stationTasks ? "送货工位" : "目的工位";
   html(
     "dispatchRobot",
-    robots
+    (stationTasks ? '<option value="">自动选择空闲车辆</option>' : "") +
+    (robots
       .map((r) => `<option value="${esc(r.id)}">${esc(r.id)}</option>`)
-      .join("") || '<option value="">没有可用车辆</option>',
+      .join("") || (stationTasks ? "" : '<option value="">没有可用车辆</option>')),
   );
   if (pendingCommand?.robotId && !robots.some(r => r.id === pendingCommand.robotId))
     $("dispatchRobot").innerHTML += `<option value="${esc(pendingCommand.robotId)}">${esc(pendingCommand.robotId)}（原请求，当前未报告）</option>`;
@@ -326,6 +334,9 @@ function renderControls() {
       )
       .join("") || '<option value="">没有已配置可用目的站</option>',
   );
+  const oldPickup = $("pickupPoint").value;
+  html("pickupPoint", choices.map((p) => `<option value="${esc(p.id)}">${esc(p.name || p.id)}</option>`).join(""));
+  if (choices.some((p) => p.id === oldPickup)) $("pickupPoint").value = oldPickup;
   if (choices.some((p) => p.id === oldDestination))
     $("toPoint").value = oldDestination;
   else if (pendingCommand?.destination) {
@@ -339,11 +350,11 @@ function renderControls() {
       ? "登录后可派车。"
       : !writable
         ? receiptSnapshot.writeBlockedReason || "当前账号只能查看。"
-      : !robot
+      : !robot && !(stationTasks && !dispatchRobotId)
         ? "请选择车辆。"
-        : !robot.online || robot.stale
+        : robot && (!robot.online || robot.stale)
           ? "所选车辆离线。"
-          : robot.paused
+          : robot?.paused
             ? "所选车辆已暂停。"
             : !modelFresh
               ? "地图还未加载，请稍候。"
@@ -355,6 +366,8 @@ function renderControls() {
                     ? publicationBlockReason || publicationSourceBlock
                     : unresolved.length
                     ? "上一次派车结果还未确认，请先在历史记录中查看。"
+                    : !robot ? "由系统挑选一台空闲车辆。"
+                    : kind === "pickdrop" && stationTasks ? "车辆先去取货工位，装货确认后再去送货工位，卸货确认后完成。"
                     : "车辆从当前位置出发。";
   $("dispatchHint").textContent = reason;
   $("sendOrderButton").disabled =
@@ -362,9 +375,7 @@ function renderControls() {
     !ready ||
     !signedIn ||
     !writable ||
-    !robot?.online ||
-    robot.stale ||
-    robot.paused ||
+    (robot ? !robot.online || robot.stale || robot.paused : !(stationTasks && !dispatchRobotId)) ||
     !modelFresh ||
     !choices.length ||
     unresolved.length > 0 ||
@@ -413,7 +424,7 @@ function renderInspector() {
     properties = [
       ["当前位置", object.location ? placeName(object.location) : "未知"],
       ["当前任务", taskText(object, operatorContext())],
-      ["电量", OV.batteryText(object)],
+      ["电量", object.battery == null ? "—" : `${OV.batteryText(object)}（${OV.batterySourceText(object)}）`],
     ];
     if (OV.engineeringEnabled())
       properties.push(
@@ -464,6 +475,13 @@ function renderInspector() {
       .join(""),
   );
   $("cancelOrder").hidden = selectedObject.kind !== "robots";
+  const work = selectedObject.kind === "robots" ? object.stationWork : null;
+  $("confirmStation").hidden = !work?.needsOperator;
+  if (work?.needsOperator) {
+    $("confirmStation").textContent = ({ pick: "取货完成", drop: "送货完成", wait: "可以继续" })[work.kind] || "确认";
+    $("confirmStation").dataset.confirmRobot = object.id;
+    $("confirmStation").disabled = busy || !canOperate();
+  }
 }
 function applyCamera() {
   const viewBox = `${camera.x} ${camera.y} ${camera.w} ${camera.h}`;
@@ -769,7 +787,7 @@ function renderHome(engineeringItems) {
   const retired = publicationStatus?.activePublication?.status === "RETIRED";
   let items = OV.exceptions({
     received: stateReceived, connected: connected(), robots, orders, waiting: context.waiting,
-    alerts: serverAlerts, unresolved: PortalState.unresolved(receiptSnapshot).length,
+    alerts: serverAlerts, alertsSupported: supports("acknowledge_alert"), unresolved: PortalState.unresolved(receiptSnapshot).length,
     storageError: receiptSnapshot.storageError, loadError: bootError,
     notReady: retired ? "仿真已停用，车辆暂不能接任务" : publicationBlockReason || publicationSourceBlock ? "地图版本未就绪，暂不能派车" : "",
     context,
@@ -779,8 +797,8 @@ function renderHome(engineeringItems) {
   if (api.authorized && receiptSnapshot.writeBlockedReason) items.push({ level: "warn", text: "只能查看：" + receiptSnapshot.writeBlockedReason, route: "events" });
   if (OV.engineeringEnabled())
     items = items.concat(engineeringItems.map((i) => ({ level: i.kind === "error" ? "alert" : "warn", text: "［工程］" + i.text, route: i.route })));
-  window.HomePanels?.render({ items, queue: OV.taskQueue(orders, context), formatTime: (t) => OV.formatTime(t) });
-  $("alertsCount").textContent = stateReceived ? items.length : "—";
+  window.HomePanels?.render({ items, queue: OV.taskQueue(orders, context), formatTime: (t) => OV.formatTime(t), canOperate: canOperate() });
+  $("alertsCount").textContent = stateReceived ? items.filter((i) => !i.acknowledged).length : "—";
 }
 function renderPortal() {
   const historyRoute=PortalState.route(location.hash);
@@ -846,7 +864,7 @@ const api = new FleetAPI(
     upstreamOnline = Boolean(state.upstreamOnline);
     upstreamAgeSeconds = Number.isFinite(state.upstreamAgeSeconds) ? state.upstreamAgeSeconds : null;
     lastStateAt = Date.now();
-    if (!robots.some((r) => r.id === selectedRobotId))
+    if (selectedRobotId !== "" && !robots.some((r) => r.id === selectedRobotId))
       selectedRobotId = robots[0]?.id || null;
     if (
       selectedObject?.kind === "robots" &&
@@ -1193,7 +1211,7 @@ $("mapSvg").addEventListener("keydown", (event) => {
 $("robotSearch").addEventListener("input", renderFleet);
 $("dispatchRobot").addEventListener("change", (event) => {
   selectedRobotId = event.target.value;
-  selectedObject = { kind: "robots", id: selectedRobotId };
+  if (selectedRobotId) selectedObject = { kind: "robots", id: selectedRobotId };
   render();
 });
 for (const button of document.querySelectorAll(".nav-item[data-view]"))
@@ -1268,21 +1286,49 @@ $("newOrderButton").addEventListener("click", () => {
 $("navigateForm").addEventListener("submit", (event) => {
   event.preventDefault();
   if ($("sendOrderButton").disabled) return;
-  action(() => submitOrder($("toPoint").value));
+  action(() => submitOrder($("toPoint").value, { kind: $("taskKind").value, pickup: $("pickupPoint").value }));
+});
+$("taskKind").addEventListener("change", renderControls);
+// Confirm station work / acknowledge alerts from the home lists and the inspector.
+document.addEventListener("click", (event) => {
+  const confirm = event.target.closest?.("[data-confirm-robot]");
+  const ack = event.target.closest?.("[data-ack-alert]");
+  if (confirm && !confirm.disabled) action(async () => {
+    await api.confirmStation(confirm.dataset.confirmRobot);
+    notify(`${confirm.dataset.confirmRobot} 已确认，继续执行任务。`);
+  });
+  else if (ack && !ack.disabled) action(async () => {
+    await api.acknowledgeAlert(ack.dataset.ackAlert);
+    notify("已确认告警。问题解决后告警会自动消失。");
+  });
 });
 // The one path that creates a navigation order, shared by the dispatch form and
 // the map's right-click command. Receipts and duplicate protection live in api.
-async function submitOrder(to) {
+async function submitOrder(to, { kind = "move", pickup = "" } = {}) {
   const content = { to, robotId: selectedRobotId };
   if (api.hasUnresolvedCreate?.() || PortalState.unresolved(receiptSnapshot).length)
-    throw new Error("有未决导航请求。请查询原 requestId，不能创建第二个意图。");
+    throw new Error("上一次派车结果还未确认，请先在历史记录中查看。");
   const destination = destinations().find(point => point.id === content.to);
-  if (!destination) throw new Error("目的站已不可用，请刷新模型并重新选择。");
-  if ([destination.id, destination.destination].includes(currentRobot()?.location))
-    throw new Error("目的站与车辆报告起点相同，请选择其他目的站。");
-  const result = await api.order({ ...content, requestId: api.id() });
-  log(`Order ${result.id} accepted. Awaiting vehicle execution feedback.`);
-  notify("请求已受理，等待车辆执行反馈。");
+  if (!destination) throw new Error("目的工位已不可用，请重新选择。");
+  const stations = supports("create_transport_order");
+  if (!stations || kind === "move") {
+    if (content.robotId && [destination.id, destination.destination].includes(currentRobot()?.location))
+      throw new Error("车辆已在这个工位，请选择其他工位。");
+  }
+  if (!stations) {
+    const result = await api.order({ ...content, requestId: api.id() });
+    log(`Order ${result.id} accepted.`);
+    notify("已派车。");
+    return result;
+  }
+  const station = (id) => destinations().find((p) => p.id === id)?.destination || id;
+  const steps = kind === "pickdrop"
+    ? [{ station: station(pickup), action: "pick" }, { station: station(to), action: "drop" }]
+    : [{ station: station(to), action: kind === "wait" ? "wait" : kind === "charge" ? "charge" : "move" }];
+  if (kind === "pickdrop" && (!pickup || pickup === to)) throw new Error("请选择不同的取货工位和送货工位。");
+  const result = await api.transport({ robotId: content.robotId || undefined, steps, requestId: api.id() });
+  log(`Task ${result?.id || ""} accepted.`);
+  notify(kind === "pickdrop" ? "已派车取货。车辆到取货工位后请装货并点“取货完成”。" : "已派车。");
   return result;
 }
 for (const [id, operation] of [

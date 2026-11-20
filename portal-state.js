@@ -6,7 +6,7 @@
   }
   function unresolved(snapshot) {
     return (snapshot?.records || []).filter((record) =>
-      record.envelope?.command?.type === "create_order" &&
+      ["create_order", "create_transport_order"].includes(record.envelope?.command?.type) &&
       !["ACCEPTED", "REJECTED"].includes(record.status),
     );
   }

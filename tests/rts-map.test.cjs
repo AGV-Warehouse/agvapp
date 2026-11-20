@@ -52,7 +52,8 @@ test('right-click plan never dispatches without exactly one chosen vehicle and a
 test('the map dispatch shares the form dispatch path and its guards', () => {
   const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   assert.equal((app.match(/api\.order\(/g) || []).length, 1, 'only submitOrder creates orders');
-  assert.match(app, /action\(\(\) => submitOrder\(\$\("toPoint"\)\.value\)\)/);
+  assert.match(app, /action\(\(\) => submitOrder\(\$\("toPoint"\)\.value, /);
+  assert.equal((app.match(/api\.transport\(/g) || []).length, 1, 'only submitOrder creates station tasks');
   assert.match(app, /if \(\$\("sendOrderButton"\)\.disabled\) return card\.setStatus/);
   const index = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.ok(index.indexOf('rts-map.js') < index.indexOf('src="app.js"'));

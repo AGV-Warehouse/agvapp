@@ -499,6 +499,7 @@
                   </div>
                 </div>
                 <dl id="objectProperties" class="property-list"></dl>
+                <button id="confirmStation" class="button button-primary" type="button" hidden>确认</button>
                 <button
                   id="cancelOrder"
                   class="button button-withdraw"
@@ -511,25 +512,21 @@
             <div id="dispatchContent" class="dispatch-content" hidden>
               <p class="section-caption">派车到工位</p>
               <form id="navigateForm">
-                <label
-                  >车辆<select
-                    id="dispatchRobot"
-                    aria-label="Dispatch vehicle"
-                  ></select
-                ></label>
+                <label id="taskKindRow" hidden>任务<select id="taskKind" aria-label="任务类型">
+                  <option value="move">送到工位</option>
+                  <option value="pickdrop">取货再送货</option>
+                  <option value="wait">到工位等待确认</option>
+                  <option value="charge">去充电</option>
+                </select></label>
+                <label>车辆<select id="dispatchRobot" aria-label="派车车辆"></select></label>
                 <div class="origin-row">
                   <span class="origin-dot"></span>
                   <div>
-                    <small>FROM</small
-                    ><strong id="fromPoint">Reported vehicle position</strong>
+                    <small>出发</small><strong id="fromPoint">Reported vehicle position</strong>
                   </div>
                 </div>
-                <label
-                  >目的站<select
-                    id="toPoint"
-                    aria-label="Destination"
-                  ></select
-                ></label>
+                <label id="pickupRow" hidden>取货工位<select id="pickupPoint" aria-label="取货工位"></select></label>
+                <label><span id="toPointLabel">目的工位</span><select id="toPoint" aria-label="目的工位"></select></label>
                 <div id="dispatchHint" class="dispatch-hint">
                   Select an available vehicle to create an order.
                 </div>

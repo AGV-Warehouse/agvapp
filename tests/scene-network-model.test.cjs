@@ -38,3 +38,22 @@ test('traffic zones are an opt-in navigation field',()=>{
  const bad=JSON.parse(JSON.stringify(scene));bad.navigation.traffic={policy:'free'};
  assert.ok(N.validate(bad).includes('交通方式无效'));
 });
+
+test('station work is an opt-in task policy with chargers that follow the stations', () => {
+  const M = require('../src/pages/maps/scene-builder/network-model.js');
+  let scene = { schemaVersion: '1.1', navigation: { points: [], paths: [], stations: [], spawns: [] } };
+  scene = M.addPoint(scene, { x: 0, y: 0 });
+  scene = M.addStation(scene, { pointId: scene.navigation.points[0].id });
+  const id = scene.navigation.stations[0].id;
+  assert.equal(M.stationTasks(scene), false);
+  assert.throws(() => M.setCharger(scene, id, true), /站点作业/);
+  scene = M.setStationTasks(scene, true);
+  assert.deepEqual(scene.navigation.tasks, { policy: 'station-actions-v1', chargers: [] });
+  scene = M.setCharger(scene, id, true);
+  assert.equal(M.isCharger(scene, id), true);
+  assert.deepEqual(M.validate({ ...scene, navigation: { ...scene.navigation, tasks: { policy: 'other', chargers: [] } } }), ['站点作业设置无效']);
+  scene = M.remove(scene, { kind: 'station', id });
+  assert.deepEqual(scene.navigation.tasks.chargers, []);
+  scene = M.setStationTasks(scene, false);
+  assert.equal('tasks' in scene.navigation, false);
+});

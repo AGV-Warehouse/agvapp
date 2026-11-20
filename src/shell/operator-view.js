@@ -31,9 +31,47 @@
   }
 
   function orderDestinations(order) {
-    const fromDrive = (order?.driveOrders || []).map((d) => d.destination?.destination).filter(Boolean);
-    if (fromDrive.length) return fromDrive;
-    return (order?.destinations || []).map((d) => d.locationName).filter(Boolean);
+    return taskSteps(order).map((s) => s.station).filter(Boolean);
+  }
+
+  // openTCS location operation -> operator task step (see Fleetserver tasks.py).
+  const KINDS = { NOP: "move", pick: "pick", drop: "drop", waitForTrigger: "wait", startCharging: "charge" };
+  const STEP_LABELS = { move: "", pick: "取货", drop: "送货", wait: "等待确认", charge: "充电" };
+  const CONFIRM_LABELS = { pick: "取货完成", drop: "送货完成", wait: "可以继续" };
+  const ALERT_TITLES = { OFFLINE: "离线", ERROR: "车辆报告故障", ORDER_FAILED: "任务失败", WAITING_TOO_LONG: "等待时间过长", LOW_BATTERY: "电量低" };
+
+  /** Steps of a transport order: station, kind, openTCS drive state, current. */
+  function taskSteps(order) {
+    const drives = order?.driveOrders || [];
+    const list = order?.destinations?.length ? order.destinations : drives;
+    const index = Number.isInteger(order?.currentDriveOrderIndex) ? order.currentDriveOrderIndex : -1;
+    return list.map((item, i) => {
+      const drive = drives[i] || {};
+      const destination = drive.destination || item;
+      const station = destination.locationName || destination.destination || item.locationName || null;
+      const operation = destination.operation || item.operation || "NOP";
+      return {
+        station, kind: KINDS[operation] || "other", operation,
+        state: item.state || drive.state || null,
+        current: i === index && order?.state === "BEING_PROCESSED",
+      };
+    });
+  }
+
+  function stepText(step, context) {
+    const name = placeName(step.station, context) || "—";
+    const label = STEP_LABELS[step.kind];
+    return label ? `${name} ${label}` : name;
+  }
+
+  /** What a vehicle does at a station now, in words, from robot.stationWork. */
+  function stationWorkText(work, context = {}) {
+    if (!work) return "";
+    const name = placeName(work.station, context);
+    const label = STEP_LABELS[work.kind] || "";
+    if (work.needsOperator) return `在 ${name} 等待确认${label ? "：" + label : ""}`;
+    if (work.atStation) return work.kind === "charge" ? `在 ${name} 充电` : `在 ${name} 作业`;
+    return `前往 ${name}${label ? " " + label : ""}`;
   }
 
   function orderState(order) {
@@ -47,18 +85,28 @@
    */
   function orderSummary(order, context = {}) {
     const vehicle = order?.processingVehicle || order?.intendedVehicle || "";
-    const stops = orderDestinations(order).map((id) => placeName(id, context));
+    const steps = taskSteps(order);
     const state = orderState(order);
-    let detail = state.label;
-    if (order?.state === "BEING_PROCESSED" && vehicle && context.waiting?.[vehicle]) {
+    const robot = (context.robots || []).find((r) => r.id === vehicle);
+    const work = robot?.stationWork?.orderId === order?.name ? robot.stationWork : null;
+    let detail = state.label, confirm = null;
+    if (order?.state === "BEING_PROCESSED" && work?.needsOperator) {
+      detail = stationWorkText(work, context);
+      state.tone = "waiting";
+      confirm = { robotId: vehicle, label: CONFIRM_LABELS[work.kind] || "确认" };
+    } else if (order?.state === "BEING_PROCESSED" && vehicle && context.waiting?.[vehicle]) {
       detail = context.waiting[vehicle];
       state.tone = "waiting";
-    } else if (order?.state === "BEING_PROCESSED" && stops.length) detail = "前往 " + stops[stops.length - 1];
-    else if (order?.state === "DISPATCHABLE" && !vehicle) detail = "等待空闲车辆";
+    } else if (order?.state === "BEING_PROCESSED" && work) detail = stationWorkText(work, context);
+    else if (order?.state === "BEING_PROCESSED" && steps.length) {
+      const current = steps.find((s) => s.current) || steps[steps.length - 1];
+      detail = "前往 " + stepText(current, context);
+    } else if (order?.state === "DISPATCHABLE" && !vehicle) detail = "等待空闲车辆";
     return {
       id: order?.name || "",
       vehicle: vehicle || "待分配",
-      to: stops.join(" → ") || "—",
+      to: steps.map((st) => stepText(st, context)).join(" → ") || "—",
+      confirm,
       state: state.label,
       tone: state.tone,
       active: state.active,
@@ -84,7 +132,9 @@
     if (!robot.online) return { label: "离线", tone: "alert" };
     if (robot.status === "ERROR") return { label: "故障", tone: "alert" };
     if (robot.paused) return { label: "已暂停", tone: "waiting" };
+    if (robot.stationWork?.needsOperator) return { label: stationWorkText(robot.stationWork, context), tone: "waiting" };
     if (waiting[robot.id]) return { label: waiting[robot.id], tone: "waiting" };
+    if (robot.stationWork) return { label: stationWorkText(robot.stationWork, context), tone: robot.stationWork.atStation ? "online" : "moving" };
     const order = (orders || []).find((o) => o.name === robot.task) ||
       (orders || []).find((o) => o.processingVehicle === robot.id && o.state === "BEING_PROCESSED");
     if (order?.state === "BEING_PROCESSED" || robot.status === "EXECUTING") {
@@ -100,6 +150,10 @@
   function batteryText(robot) {
     const value = robot?.battery;
     return Number.isFinite(value) ? Math.round(value) + "%" : "—";
+  }
+  /** Where the battery number comes from, for a tooltip. */
+  function batterySourceText(robot) {
+    return robot?.batterySource === "ROBOT" ? "车辆上报" : robot?.batterySource === "SIMULATION_MODEL" ? "仿真模型估算" : "未上报";
   }
 
   /** Local date-time in a fixed, unambiguous format: 2026-11-20 14:05. */
@@ -120,7 +174,7 @@
    * alerts ({level|severity, vehicleId|robotId, message|text}) when the gateway
    * provides them; until then the list is derived from the live fleet state.
    */
-  function exceptions({ received, connected, robots = [], orders = [], waiting = {}, alerts = [],
+  function exceptions({ received, connected, robots = [], orders = [], waiting = {}, alerts = [], alertsSupported = false,
     unresolved = 0, storageError = "", loadError = "", notReady = "", context = {} } = {}) {
     const items = [];
     if (loadError) items.push({ level: "alert", text: "服务加载失败：" + loadError, route: "events" });
@@ -128,17 +182,23 @@
     if (!connected) items.push({ level: "alert", text: "与车队的连接中断，显示的是最后已知状态", route: "fleet" });
     for (const alert of alerts || []) {
       const level = /crit|error|alert|high/i.test(alert.level || alert.severity || "") ? "alert" : "warn";
-      items.push({ level, vehicle: alert.vehicleId || alert.robotId || "", text: alert.message || alert.text || "", route: "events", id: alert.id });
+      // Known kinds use portal wording (translated); the gateway's own detail explains why and what to do.
+      items.push({ level, vehicle: alert.vehicleId || alert.robotId || "", text: ALERT_TITLES[alert.kind] || alert.title || alert.message || alert.text || "",
+        detail: alert.detail || "", route: alert.orderId ? "missions" : "fleet", id: alert.id, acknowledged: Boolean(alert.acknowledged) });
     }
+    // When the gateway reports alerts it owns offline/fault/failed; derive only what it does not report.
     for (const robot of robots) {
       if (!connected) break;
-      if (robot.stale || !robot.online) items.push({ level: "alert", vehicle: robot.id, text: robot.stale ? "信号中断" : "离线", route: "fleet" });
-      else if (robot.status === "ERROR") items.push({ level: "alert", vehicle: robot.id, text: "车辆报告故障", route: "fleet" });
+      if (robot.stationWork?.needsOperator)
+        items.push({ level: "warn", vehicle: robot.id, text: stationWorkText(robot.stationWork, context), route: "operations",
+          confirm: { robotId: robot.id, label: CONFIRM_LABELS[robot.stationWork.kind] || "确认" } });
+      if (robot.stale || !robot.online) { if (!alertsSupported) items.push({ level: "alert", vehicle: robot.id, text: robot.stale ? "信号中断" : "离线", route: "fleet" }); }
+      else if (robot.status === "ERROR") { if (!alertsSupported) items.push({ level: "alert", vehicle: robot.id, text: "车辆报告故障", route: "fleet" }); }
       else if (robot.paused) items.push({ level: "warn", vehicle: robot.id, text: "已暂停，不会接新任务", route: "fleet" });
       else if (waiting[robot.id]) items.push({ level: "warn", vehicle: robot.id, text: waiting[robot.id], route: "operations" });
     }
     const hour = Date.now() - 3600e3;
-    for (const order of orders) {
+    for (const order of alertsSupported ? [] : orders) {
       if (!["FAILED", "UNROUTABLE"].includes(order.state)) continue;
       if ((Date.parse(order.finishedTime || order.creationTime || "") || 0) < hour) continue;
       const summary = orderSummary(order, context);
@@ -150,8 +210,10 @@
     if (notReady) items.push({ level: "warn", text: notReady, route: "operations" });
     // Dedupe server alerts against derived ones for the same vehicle and text.
     const seen = new Set();
+    // Open critical first, then work waiting for a person, then the rest; acknowledged last.
+    const rank = (i) => (i.acknowledged ? 4 : 0) + (i.level === "alert" ? 0 : i.confirm ? 1 : 2);
     return items.filter((i) => { const k = i.level + i.vehicle + i.text; if (seen.has(k)) return false; seen.add(k); return true; })
-      .sort((a, b) => (a.level === "alert" ? 0 : 1) - (b.level === "alert" ? 0 : 1));
+      .sort((a, b) => rank(a) - rank(b));
   }
 
   /** vehicle id -> waiting reason from openTCS allocations (no guessing). */
@@ -180,7 +242,8 @@
 
   const api = {
     ENGINEERING_KEY, ENGINEERING_ROUTES, placeName, orderDestinations, orderState, orderSummary,
-    taskQueue, vehicleStatus, batteryText, exceptions, waitingReasons, formatTime, engineeringEnabled, setEngineering,
+    taskQueue, vehicleStatus, batteryText, batterySourceText, exceptions, waitingReasons,
+    taskSteps, stepText, stationWorkText, STEP_LABELS, formatTime, engineeringEnabled, setEngineering,
   };
   root.OperatorView = api;
   if (typeof module === "object" && module.exports) module.exports = api;

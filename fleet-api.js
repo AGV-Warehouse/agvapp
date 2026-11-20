@@ -3,12 +3,24 @@
   const TAB_ACTIVITY = "fleet-tab-operation:";
   const copy = value => JSON.parse(JSON.stringify(value));
   const stable = value => JSON.stringify(value, (_, v) => v && !Array.isArray(v) && typeof v === "object" ? Object.keys(v).sort().reduce((o,k)=>(o[k]=v[k],o),{}) : v);
+  // Commands that create a task: one unresolved create per vehicle at a time.
+  const creates = command => command?.type === "create_order" || command?.type === "create_transport_order";
   const final = status => status === "ACCEPTED" || status === "REJECTED";
   const identifier = value => typeof value==="string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value);
   const object = value => value && typeof value==="object" && !Array.isArray(value);
   const timestamp = value => typeof value==="string" && /T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value));
+  const TASK_ACTIONS=["move","pick","drop","wait","charge"];
+  function validTransport(command) {
+    const keys=Object.keys(command).filter(k=>k!=="type");
+    return keys.every(k=>k==="robotId" || k==="steps") && (!("robotId" in command) || identifier(command.robotId)) &&
+      Array.isArray(command.steps) && command.steps.length>=1 && command.steps.length<=8 &&
+      command.steps.every(step=>object(step) && Object.keys(step).length===2 && identifier(step.station) && TASK_ACTIONS.includes(step.action));
+  }
   function validCommand(command) {
     if(!object(command)) return false;
+    if(command.type==="create_transport_order") return validTransport(command);
+    if(command.type==="confirm_station_action") return Object.keys(command).length===2 && identifier(command.robotId);
+    if(command.type==="acknowledge_alert") return Object.keys(command).length===2 && typeof command.alertId==="string" && /^[A-Z_]{3,32}:[A-Za-z0-9_.:-]{1,160}$/.test(command.alertId);
     const fields=command.type==="create_order"?["type","robotId","destination"]:command.type==="pause" || command.type==="resume"?["type","robotId"]:command.type==="cancel_order"?["type","orderId"]:command.type==="finish_stopped_run"?["type","runId","orderId","robotId","releaseId","sourceId"]:[];
     return fields.length && Object.keys(command).length===fields.length && fields.every(k=>k==="type" || (k==="orderId" ? /^fleet-[a-f0-9]{32}$/.test(command[k]) : k==="releaseId" ? /^[a-f0-9]{32}$/.test(command[k]) : identifier(command[k])));
   }
@@ -200,8 +212,8 @@
       const writeBlockedReason=this.storageError || (!this.deploymentConfirmed ? "尚未确认 API 部署身份，请等待读取连接能力" : !this.authorized ? "请先登录操作员会话" : !root.navigator?.locks?.request ? "当前浏览器来源不支持跨标签页请求锁；仅可查询，请使用受支持的 HTTPS 或 localhost 安全来源" : null);
       return copy({deploymentConfirmed:this.deploymentConfirmed,deploymentId:this.deploymentId,apiBase:this.apiBase,legacyRecords:this.legacyRecords,queryPersistence:!!root.navigator?.locks?.request,canWrite:!writeBlockedReason,writeBlockedReason,records:this.records,scope:this.scope,storageError:this.storageError,authorized:this.authorized}); }
     emit() { this.onReceipts?.(this.receiptSnapshot()); }
-    hasUnresolvedCreate(robotId) { return this.records.some(r=>!final(r.status) && r.envelope.command.type==="create_order" && (!robotId || r.envelope.command.robotId===robotId)); }
-    hasUnresolved(command) { return this.records.some(r=>!final(r.status) && (command.type==="create_order" ? r.envelope.command.type==="create_order" && r.envelope.command.robotId===command.robotId : stable(r.envelope.command)===stable(command))); }
+    hasUnresolvedCreate(robotId) { return this.records.some(r=>!final(r.status) && creates(r.envelope.command) && (!robotId || r.envelope.command.robotId===robotId)); }
+    hasUnresolved(command) { return this.records.some(r=>!final(r.status) && (creates(command) ? creates(r.envelope.command) && r.envelope.command.robotId===command.robotId : stable(r.envelope.command)===stable(command))); }
     requireAuthorization() { if(!this.authorized || !this.key && (this.portalRole!=="operator" || !this.portalSessionURL())) throw this.failure("请先登录操作员会话","AUTH_REQUIRED",401); }
     hasSubmittedInTab() {
       if(this.submittedInTab?.has(this.scope)) return true;
@@ -384,6 +396,14 @@
         value.requestId,
       );
     }
+    // A task of 1..8 station steps; without robotId openTCS picks a free vehicle.
+    transport(value) {
+      const command = { type: "create_transport_order", steps: value.steps.map(s => ({ station: s.station, action: s.action })) };
+      if (value.robotId) command.robotId = value.robotId;
+      return this.command(command, value.requestId);
+    }
+    confirmStation(robotId) { return this.command({ type: "confirm_station_action", robotId }); }
+    acknowledgeAlert(alertId) { return this.command({ type: "acknowledge_alert", alertId }); }
     model() {
       return this.request("model");
     }

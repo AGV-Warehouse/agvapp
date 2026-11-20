@@ -71,3 +71,38 @@ test("dates use one unambiguous format", () => {
   assert.match(OV.formatTime("2020-01-02T03:04:00"), /^2020-01-02 03:04$/);
   assert.equal(OV.formatTime("nope"), "—");
 });
+
+test("pickup/drop-off tasks read their steps and ask the operator to confirm at the station", () => {
+  const order = {
+    name: "fleet-1", state: "BEING_PROCESSED", processingVehicle: "LAB-01", currentDriveOrderIndex: 0,
+    driveOrders: [
+      { destination: { destination: "S-1", operation: "pick" }, state: "OPERATING" },
+      { destination: { destination: "S-3", operation: "drop" }, state: "PRISTINE" },
+    ],
+  };
+  const steps = OV.taskSteps(order);
+  assert.deepEqual(steps.map((s) => [s.station, s.kind, s.current]), [["S-1", "pick", true], ["S-3", "drop", false]]);
+  const robots = [{ id: "LAB-01", online: true, task: "fleet-1", status: "EXECUTING",
+    stationWork: { orderId: "fleet-1", station: "S-1", kind: "pick", atStation: true, needsOperator: true } }];
+  const row = OV.orderSummary(order, { layout, robots });
+  assert.equal(row.to, "待料缓冲位 取货 → S-3 送货");
+  assert.equal(row.detail, "在 待料缓冲位 等待确认：取货");
+  assert.deepEqual(row.confirm, { robotId: "LAB-01", label: "取货完成" });
+  assert.equal(OV.vehicleStatus(robots[0], { layout }).label, "在 待料缓冲位 等待确认：取货");
+  const items = OV.exceptions({ received: true, connected: true, robots, alertsSupported: true, context: { layout } });
+  assert.equal(items[0].confirm.robotId, "LAB-01");
+});
+
+test("gateway alerts replace derived offline/failed items and can be acknowledged", () => {
+  const items = OV.exceptions({
+    received: true, connected: true, alertsSupported: true,
+    robots: [{ id: "LAB-01", online: false }],
+    orders: [order("f", "FAILED", { finishedTime: new Date().toISOString() })],
+    alerts: [{ id: "OFFLINE:LAB-01", kind: "OFFLINE", severity: "critical", robotId: "LAB-01", title: "LAB-01 离线", detail: "检查电源", acknowledged: false },
+      { id: "LOW_BATTERY:LAB-02", kind: "LOW_BATTERY", severity: "warning", robotId: "LAB-02", title: "x", detail: "去充电", acknowledged: true }],
+  });
+  assert.deepEqual(items.map((i) => [i.vehicle, i.text, i.id]), [["LAB-01", "离线", "OFFLINE:LAB-01"], ["LAB-02", "电量低", "LOW_BATTERY:LAB-02"]]);
+  assert.match(HomePanels.attentionMarkup(items, { canOperate: true }), /data-ack-alert="OFFLINE:LAB-01"/);
+  assert.doesNotMatch(HomePanels.attentionMarkup(items, { canOperate: true }), /data-ack-alert="LOW_BATTERY/);
+  assert.equal(OV.batterySourceText({ batterySource: "SIMULATION_MODEL" }), "仿真模型估算");
+});
