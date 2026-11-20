@@ -2333,7 +2333,7 @@
     "；运动源": "; motion source",
     "交通方式无效": "Invalid traffic mode",
     "分区交通：不同区域的车辆可同时行驶": "Traffic zones: vehicles in different areas may move at the same time",
-    "不勾选时整个路网只允许一辆车行驶。勾选后每个路口及相邻路线各为一个分区；两车在同一双向通道上相向行驶可能互相等待，建议用单向环路或旁侧停靠位。": "Unchecked, only one vehicle may move on the whole network. Checked, each junction and its adjacent routes form one zone; two vehicles driving toward each other on the same two-way corridor may wait for each other, so prefer one-way loops or side bays.",
+    "不勾选时整个路网只允许一辆车行驶。勾选后每个路口及相邻路线各为一个分区；双向通道会自动合并成一个分区，同一时间只放一辆车通过，避免两车相向互相卡住。": "Unchecked: only one vehicle moves on the whole network at a time. Checked: each junction and its adjacent paths form one zone; two-way corridors are merged into a single zone that admits one vehicle at a time, so two vehicles can't block each other head-on.",
     "交通方式已修改，记得保存场景。": "Traffic mode changed. Remember to save the scene.",
     "已选": "Selected",
     "辆：": "vehicles:",
