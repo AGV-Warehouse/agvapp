@@ -25,7 +25,7 @@
   const resetProgress={STOPPING:'正在关闭仿真计算与 3D 画面。',RELEASING:'正在结案未完成任务并核对车辆资源。',RETIRING_WORKER_RELEASE:'正在停用旧场景。',VERIFIED_IDLE:'已核实资源释放，正在保存结案记录。'};
   function viewerURL(value){try{if(typeof value!=='string')return null;const base=root.location?.href,u=new URL(value,base);const sameOrigin=base&&u.origin===new URL(base).origin&&u.pathname==='/sim-viewer/';return (sameOrigin||u.origin==='http://127.0.0.1:55236'&&u.pathname==='/')&&!u.username&&!u.password&&!u.search&&!u.hash?u.href:null;}catch(_){return null;}}
   function readyViewerURL(viewer){
-    return viewer?.ready===true&&viewer.running===true&&viewer.rendererRunning===true?viewerURL(viewer.url):null;
+    return viewer?.running===true&&viewer.rendererRunning===true?viewerURL(viewer.url):null;
   }
   function serviceState(state) {
     if (!state) return '等待读取当前环境';
