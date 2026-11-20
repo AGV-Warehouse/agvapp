@@ -320,7 +320,7 @@
     applyCamera();
   }
   function field(label, name, value, type = "text", extra = "") {
-    return `<label>${label}<input name="${name}" value="${esc(value)}" type="${type}" ${extra} required></label>`;
+    return `<label>${label}<input name="${name}" value="${esc(value ?? "")}" type="${type}" ${extra} required></label>`;
   }
   function options(values, chosen, labels = {}) {
     return values

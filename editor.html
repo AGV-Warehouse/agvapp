@@ -13,19 +13,10 @@
   </head>
   <body>
     <header class="app-header">
-      <a class="brand" href="./"
-        ><img src="icon.svg" width="34" height="34" alt="" /><span
-          >fleet<span class="brand-light">server</span
-          ><small>场地地图工作区</small></span
-        ></a
-      >
-      <div class="header-context">
-        <span class="context-divider">/</span><span>地图编辑器</span
-        ><span class="draft-label">仅编辑草稿</span>
-      </div>
+      <a class="brand" href="./" aria-label="AGV 车队首页"><span class="brand-symbol"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="5" r="3"/><path d="M5 15V9a4 4 0 0 1 4-4h7 M8 18h7a4 4 0 0 0 4-4v-2"/></svg></span><span class="brand-name">AGV 车队</span></a>
+      <div class="header-context"><span class="context-divider">/</span><span>工程模式</span><span class="context-divider">/</span><span>地图编辑器</span><span class="draft-label">草稿</span></div>
       <div class="header-right">
-        <a class="button button-quiet" href="./#/maps">返回场地与发布</a
-        ><button id="editorAccess" class="button">操作员登录</button>
+        <span id="portalUpdateSlot" class="portal-update-slot"></span><a class="button button-quiet" href="./#/maps">返回地图与发布</a><button id="editorAccess" class="button">登录</button>
       </div>
     </header>
     <div class="editor-shell">

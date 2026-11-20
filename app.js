@@ -222,7 +222,7 @@ function renderFleet() {
   $("orderNavCount").textContent = activeOrders;
   $("orderNavCount").hidden = activeOrders === 0;
   $("orderNavCount").title = "进行中的任务";
-  $("fleetMode").textContent = `${robots.length} 台`;
+  $("fleetMode").textContent = String(robots.length);
   $("connectionPill").className =
     `connection-pill ${online ? "connected" : stateReceived ? "disconnected" : ""}`;
   html(
@@ -559,7 +559,8 @@ function renderMap() {
   const attrs = (kind, id) =>
     guest ? '' : `class="map-item${selected(kind, id)}" data-object-kind="${kind}" data-object-id="${esc(id)}" tabindex="0" role="button" aria-label="${esc(kind.slice(0, -1) + " " + id)}"`;
   const label = (id, x, y, anchor = "start") =>
-    `<text class="map-label" x="${x}" y="${y}" text-anchor="${anchor}" font-size="${font}">${esc(id)}</text>`;
+    // Site names are what the scene author typed; never machine-translate them.
+    `<text class="map-label" translate="no" x="${x}" y="${y}" text-anchor="${anchor}" font-size="${font}">${esc(id)}</text>`;
   html(
     "mapPaths",
     map.paths
