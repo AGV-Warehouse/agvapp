@@ -58,6 +58,16 @@
     return best;
   }
 
+  // Camera velocity (map units per ms) from the last ~100 ms of a drag; null
+  // when the pointer was held still before release (no fling).
+  function panVelocity(samples, at) {
+    const recent = samples.filter(s => at - s.t <= 100);
+    if (recent.length < 2 || at - recent[recent.length - 1].t > 50) return null;
+    const a = recent[0], b = recent[recent.length - 1], dt = b.t - a.t;
+    if (dt <= 0) return null;
+    return {x: (b.x - a.x) / dt, y: (b.y - a.y) / dt};
+  }
+
   function bounds(items) {
     const pts = items.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
     if (!pts.length) return null;
@@ -69,7 +79,7 @@
     const {svg, host, doc = root.document} = o;
     const ns = 'http://www.w3.org/2000/svg';
     let target = null, from = null, startedAt = 0, frame = 0;
-    let gesture = null;
+    let gesture = null, glide = 0;
     const now = () => root.performance?.now() ?? Date.now();
 
     function localPoint(event) {
@@ -100,8 +110,23 @@
     }
     function settle() {
       if (frame) root.cancelAnimationFrame(frame);
-      frame = 0;
+      if (glide) root.cancelAnimationFrame(glide);
+      frame = glide = 0;
       target = null;
+    }
+    // Keep sliding after a quick drag, slowing down like Google Maps.
+    function coast(velocity) {
+      let last = now(), v = velocity;
+      const tick = () => {
+        const t = now(), dt = Math.min(48, t - last);
+        last = t;
+        v = {x: v.x * Math.exp(-dt / 260), y: v.y * Math.exp(-dt / 260)};
+        const camera = o.getCamera();
+        o.setCamera({...camera, x: camera.x + v.x * dt, y: camera.y + v.y * dt});
+        renderMinimap();
+        glide = Math.hypot(v.x, v.y) * 16 > 0.25 * o.unit() ? root.requestAnimationFrame(tick) : 0;
+      };
+      glide = root.requestAnimationFrame(tick);
     }
 
     // Selection box (drawn in map units on top of everything).
@@ -121,7 +146,7 @@
       const item = event.target.closest('.map-item');
       if (item && !event.shiftKey) return; // clicks on objects are handled below
       settle();
-      gesture = {id: event.pointerId, start: localPoint(event), select: event.shiftKey && o.canSelect(), moved: false};
+      gesture = {id: event.pointerId, start: localPoint(event), select: event.shiftKey && o.canSelect(), moved: false, samples: []};
       svg.setPointerCapture(event.pointerId);
       if (!gesture.select) svg.classList.add('panning');
     });
@@ -133,7 +158,10 @@
       if (gesture.select) drawBox(gesture.start, p);
       else {
         const camera = o.getCamera();
-        o.setCamera({...camera, x: camera.x + gesture.start.x - p.x, y: camera.y + gesture.start.y - p.y});
+        const next = {...camera, x: camera.x + gesture.start.x - p.x, y: camera.y + gesture.start.y - p.y};
+        o.setCamera(next);
+        gesture.samples.push({t: now(), x: next.x, y: next.y});
+        if (gesture.samples.length > 8) gesture.samples.shift();
         renderMinimap();
       }
     });
@@ -144,6 +172,9 @@
         o.setSelection(event.ctrlKey || event.metaKey ? [...new Set([...o.getSelection(), ...ids])] : ids);
       } else if (!gesture.moved && event.type === 'pointerup' && !event.target.closest?.('.map-item')) {
         o.setSelection([]); // click on empty map clears the selection
+      } else if (!gesture.select && gesture.moved && event.type === 'pointerup') {
+        const v = panVelocity(gesture.samples, now());
+        if (v) coast(v);
       }
       box.setAttribute('visibility', 'hidden');
       svg.classList.remove('panning');
@@ -152,7 +183,14 @@
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) svg.addEventListener(type, endGesture);
 
     // Vehicles: select without opening the details drawer; double-click opens it.
+    // With vehicles selected, a left click on a station is a dispatch command.
     svg.addEventListener('click', event => {
+      const station = event.target.closest('[data-object-kind="stations"]');
+      if (station && o.getSelection().length) {
+        event.stopImmediatePropagation();
+        o.onStationCommand(station.dataset.objectId, event.clientX, event.clientY);
+        return;
+      }
       const item = event.target.closest('[data-object-kind="robots"]');
       if (!item) return;
       event.stopImmediatePropagation();
@@ -165,6 +203,7 @@
 
     svg.addEventListener('wheel', event => {
       event.preventDefault();
+      if (glide) { root.cancelAnimationFrame(glide); glide = 0; }
       const factor = Math.pow(1.0015, Math.max(-300, Math.min(300, event.deltaY * (event.deltaMode === 1 ? 33 : 1))));
       zoomBy(factor, localPoint(event));
     }, {passive: false});
@@ -319,7 +358,7 @@
     return api;
   }
 
-  const api = {zoomAt, lerpCamera, normalizedRect, boxSelect, clickSelect, dispatchPlan, nearest, bounds, mount, commandCard};
+  const api = {zoomAt, lerpCamera, normalizedRect, boxSelect, clickSelect, dispatchPlan, nearest, panVelocity, bounds, mount, commandCard};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RtsMap = api;
 })(globalThis);

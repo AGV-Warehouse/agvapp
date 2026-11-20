@@ -68,6 +68,7 @@ let toastTimer,
   fitCamera = { ...camera },
   mapSelection = [],
   rtsVehicles = [],
+  rtsIntents = new Map(),
   rtsSelectionBar = null,
   rtsMap = null;
 const events = [],
@@ -719,6 +720,7 @@ function renderLiveVehicles() {
     return { id, x, y };
   }).filter((v) => Number.isFinite(v.x) && Number.isFinite(v.y));
   renderSelectionBar();
+  renderIntents(unit);
   rtsMap?.renderMinimap();
   const layer = $("robotMarkers");
   const focused = document.activeElement;
@@ -1312,10 +1314,30 @@ function renderSelectionBar() {
   const live = new Set(rtsVehicles.map((v) => v.id));
   mapSelection = mapSelection.filter((id) => live.has(id) || robots.some((r) => r.id === id));
   const text = guestOverview() ? "" : mapSelection.length
-    ? `已选 ${mapSelection.length} 辆：${mapSelection.join("、")} · 右键工位派车 · Esc 取消选择`
+    ? `已选 ${mapSelection.length} 辆：${mapSelection.join("、")} · 点击或右键工位派车 · Esc 取消选择`
     : rtsVehicles.length ? "点选车辆，或 Shift+拖动框选 · 滚轮缩放 · 拖动平移" : "";
   setIfChanged(rtsSelectionBar, "textContent", text);
   rtsSelectionBar.hidden = !text;
+}
+// Accepted map dispatches drawn right away as a dashed "heading to" line; the
+// line is only the operator's accepted intent, never a planned route. It
+// clears when the vehicle reports the destination or after three minutes.
+function renderIntents(unit) {
+  const layer = $("rtsIntents");
+  const stations = new Map((model?.stations || []).filter(validXY).map((s) => [s.id, pointXY(s)]));
+  const now = Date.now();
+  let markup = "";
+  for (const [robotId, intent] of rtsIntents) {
+    const robot = robots.find((r) => r.id === robotId);
+    if (now - intent.at > 180000 || [intent.pointId, intent.stationId].includes(robot?.location)) {
+      rtsIntents.delete(robotId);
+      continue;
+    }
+    const from = rtsVehicles.find((v) => v.id === robotId), to = stations.get(intent.stationId);
+    if (!from || !to) continue;
+    markup += `<g class="rts-intent"><title>${esc(robotId)} → ${esc(intent.stationId)}（已受理，等待到站）</title><path d="M${from.x} ${from.y} L${to[0]} ${to[1]}" stroke-width="${2 * unit}" stroke-dasharray="${6 * unit} ${5 * unit}"/><circle cx="${to[0]}" cy="${to[1]}" r="${13 * unit}" stroke-width="${2 * unit}"/></g>`;
+  }
+  setIfChanged(layer, "innerHTML", markup);
 }
 function setMapSelection(ids) {
   mapSelection = [...new Set(ids)];
@@ -1352,7 +1374,11 @@ function stationCommand(stationId, x, y) {
       if ($("sendOrderButton").disabled) return card.setStatus($("dispatchHint").textContent, "error");
       let outcome = null;
       await action(async () => { outcome = await submitOrder(plan.destination.id); });
-      if (outcome) card.done(`已受理：订单 ${outcome.id || ""}。等待车辆执行反馈。`, "ok");
+      if (outcome) {
+        rtsIntents.set(robotId, { stationId, pointId: plan.destination.id, at: Date.now() });
+        renderMap();
+        card.done(`已受理：订单 ${outcome.id || ""}。等待车辆执行反馈。`, "ok");
+      }
       else card.done(`未受理：${lastActionError || "请求失败"}`, "error");
     },
   });

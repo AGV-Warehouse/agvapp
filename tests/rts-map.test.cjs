@@ -68,3 +68,16 @@ test('right-click snaps to the nearest station within the radius only', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src/pages/operations/rts-map.js'), 'utf8');
   assert.match(source, /addEventListener\('contextmenu', event => \{\s+event\.preventDefault\(\);/);
 });
+
+test('a quick drag release flings, a held pointer does not', () => {
+  const samples = [{t: 0, x: 0, y: 0}, {t: 40, x: 8, y: -4}, {t: 80, x: 16, y: -8}];
+  assert.deepEqual(Rts.panVelocity(samples, 90), {x: 0.2, y: -0.1});
+  assert.equal(Rts.panVelocity(samples, 200), null, 'held still before release');
+  assert.equal(Rts.panVelocity(samples.slice(0, 1), 10), null);
+});
+
+test('accepted map dispatch draws an intent line, never a planned route', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(app, /if \(outcome\) \{\s+rtsIntents\.set\(robotId/);
+  assert.match(app, /now - intent\.at > 180000/);
+});

@@ -2355,7 +2355,9 @@
     "取消": "Cancel",
     "正在提交，等待回执…": "Submitting, waiting for receipt…",
     "选择目的工位": "Choose a destination station",
-    "右键地图上的工位（小方块）把所选车辆派过去。": "Right-click a station (small square) on the map to send the selected vehicle there."
+    "右键地图上的工位（小方块）把所选车辆派过去。": "Right-click a station (small square) on the map to send the selected vehicle there.",
+    "· 点击或右键工位派车 · Esc 取消选择": "· Click or right-click a station to dispatch · Esc clears",
+    "（已受理，等待到站）": " (accepted, waiting for arrival)"
   };
   root.PortalI18nEN = EN;
   if (typeof module !== "undefined") module.exports = EN;
