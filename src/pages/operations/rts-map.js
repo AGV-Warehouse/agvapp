@@ -48,6 +48,16 @@
     return {kind: 'choose', destination, robotIds: [...selection]};
   }
 
+  // Id of the item ({id, x, y}) closest to p within `radius`, else null.
+  function nearest(items, p, radius) {
+    let best = null, distance = radius;
+    for (const item of items) {
+      const d = Math.hypot(item.x - p.x, item.y - p.y);
+      if (d <= distance) { best = item.id; distance = d; }
+    }
+    return best;
+  }
+
   function bounds(items) {
     const pts = items.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
     if (!pts.length) return null;
@@ -159,11 +169,14 @@
       zoomBy(factor, localPoint(event));
     }, {passive: false});
 
+    // The map owns the right button: never show the browser's menu here. A
+    // right-click near a station (within ~24 px) counts as on the station.
     svg.addEventListener('contextmenu', event => {
-      const station = event.target.closest('[data-object-kind="stations"]');
-      if (!station) return;
       event.preventDefault();
-      o.onStationCommand(station.dataset.objectId, event.clientX, event.clientY);
+      const station = event.target.closest('[data-object-kind="stations"]')?.dataset.objectId ||
+        nearest(o.stations?.() || [], localPoint(event), 24 * o.unit());
+      if (station) o.onStationCommand(station, event.clientX, event.clientY);
+      else o.onEmptyCommand?.(event.clientX, event.clientY);
     });
 
     // Minimap: the whole site, the vehicles and the current view.
@@ -306,7 +319,7 @@
     return api;
   }
 
-  const api = {zoomAt, lerpCamera, normalizedRect, boxSelect, clickSelect, dispatchPlan, bounds, mount, commandCard};
+  const api = {zoomAt, lerpCamera, normalizedRect, boxSelect, clickSelect, dispatchPlan, nearest, bounds, mount, commandCard};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RtsMap = api;
 })(globalThis);

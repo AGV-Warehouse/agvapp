@@ -1370,6 +1370,14 @@ rtsMap = window.RtsMap?.mount({
   setSelection: setMapSelection,
   openDetails: (id) => { mapSelection = [id]; selectObject("robots", id); },
   onStationCommand: stationCommand,
+  stations: () => (model?.stations || []).filter(validXY).map((s) => {
+    const [x, y] = pointXY(s);
+    return { id: s.id, x, y };
+  }),
+  onEmptyCommand: (x, y) => {
+    if (guestOverview() || !mapSelection.length) return;
+    RtsMap.commandCard({ x, y, title: "选择目的工位", lines: ["右键地图上的工位（小方块）把所选车辆派过去。"] });
+  },
   onPointer: (p) => {
     if (model?.points.length)
       $("mapCoordinates").textContent = `X ${(p.x / 60).toFixed(2)} · Y ${(-p.y / 60).toFixed(2)} m`;

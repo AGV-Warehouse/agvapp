@@ -59,3 +59,12 @@ test('the map dispatch shares the form dispatch path and its guards', () => {
   const assets = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'web-assets.json'), 'utf8'));
   assert.ok(assets.includes('src/pages/operations/rts-map.js'));
 });
+
+test('right-click snaps to the nearest station within the radius only', () => {
+  const stations = [{id: 'S-1', x: 0, y: 0}, {id: 'S-2', x: 30, y: 0}];
+  assert.equal(Rts.nearest(stations, {x: 20, y: 0}, 24), 'S-2');
+  assert.equal(Rts.nearest(stations, {x: 4, y: 3}, 24), 'S-1');
+  assert.equal(Rts.nearest(stations, {x: 100, y: 100}, 24), null);
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src/pages/operations/rts-map.js'), 'utf8');
+  assert.match(source, /addEventListener\('contextmenu', event => \{\s+event\.preventDefault\(\);/);
+});
