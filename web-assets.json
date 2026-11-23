@@ -50,6 +50,5 @@
   "styles.css",
   "sw.js",
   "vendor/three-0.158.0.min.js",
-  "vendor/three-LICENSE.txt",
   "web-assets.json"
 ]
