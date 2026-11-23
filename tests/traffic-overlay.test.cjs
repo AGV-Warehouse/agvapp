@@ -72,7 +72,7 @@ test('a held member of a single-vehicle zone blocks the other members of that zo
   assert.deepEqual(T.blockingResource(a, [a, b], blocks), {resource: 'P-2', holder: 'LAB-02', zone: 'ZONE-1'});
   const model = {blocks, points: [{id: 'P-2', label: '二号路口'}]};
   assert.equal(T.status(a, [a, b], [], {model, placeName: id => model.points.find(p => p.id === id)?.label}).text,
-    '等待 LAB-02 离开 二号路口 所在路口区域');
+    '等待 LAB-02 通过 二号路口 路口');
   const c = {id: 'LAB-03', online: true, task: 'o3', status: 'EXECUTING', allocated: [], claimed: ['P-5']};
   assert.equal(T.blockingResource(c, [c, {id: 'LAB-04', allocated: ['P-6']}], blocks), null);
 });
@@ -103,4 +103,38 @@ test('render outlines the requested next step apart from held resources', () => 
   assert.match(svg, /class="traffic-held"[^>]*><title>LAB-01 占用 P-1/);
   assert.equal((svg.match(/traffic-claimed/g) || []).length, 2);
   assert.match(svg, /已申请、尚未获准 R-1/);
+});
+
+test('a vehicle still driving granted path toward its wait point is not shown as waiting yet', () => {
+  const order = {name: 'o3', state: 'BEING_PROCESSED', currentDriveOrderIndex: 0, currentRouteStepIndex: -1,
+    driveOrders: [{route: {steps: [
+      {path: 'R-8~spur:reverse', sourcePoint: 'P-8', destinationPoint: 'P-8~hold'},
+      {path: 'R-8:reverse', sourcePoint: 'P-8~hold', destinationPoint: 'P-2'}]}}]};
+  const model = {blocks: [{id: 'Z', type: 'SINGLE_VEHICLE_ONLY', members: ['P-2', 'P-3', 'R-8:reverse']}],
+    points: [{id: 'P-2', label: '通行点一'}, {id: 'P-8~hold', label: '停车位 路口前等待点'}]};
+  const placeName = id => model.points.find(p => p.id === id)?.label || id;
+  const a = {id: 'LAB-03', online: true, task: 'o3', status: 'EXECUTING', location: 'P-8',
+    allocated: ['P-8', 'R-8~spur:reverse', 'P-8~hold'], claimed: ['R-8:reverse', 'P-2']};
+  const b = {id: 'LAB-01', online: true, allocated: ['P-3']};
+  const driving = T.status(a, [a, b], [order], {model, placeName});
+  assert.equal(driving.level, 'info');
+  assert.equal(driving.text, '前往 停车位 路口前等待点，到后等待 LAB-01 通过 通行点一 路口');
+  const there = T.status({...a, location: 'P-8~hold', allocated: ['P-8~hold']}, [a, b], [order], {model, placeName});
+  assert.equal(there.level, 'warn');
+  assert.equal(there.text, '等待 LAB-01 通过 通行点一 路口');
+});
+
+test('a claim for the leg after the station work is not a wait while the stop is still granted', () => {
+  const order = {name: 'o1', state: 'BEING_PROCESSED', currentDriveOrderIndex: 0, currentRouteStepIndex: -1,
+    driveOrders: [{route: {steps: [{path: 'R-7~spur', sourcePoint: 'P-7~hold', destinationPoint: 'P-7'}]}},
+      {route: {steps: [{path: 'R-7~spur:reverse', sourcePoint: 'P-7', destinationPoint: 'P-7~hold'}, {path: 'R-7:reverse', sourcePoint: 'P-7~hold', destinationPoint: 'P-3'}]}}]};
+  const model = {blocks: [{id: 'Z', type: 'SINGLE_VEHICLE_ONLY', members: ['P-2', 'P-3', 'R-7:reverse', 'R-7~spur:reverse']}], points: [{id: 'P-3', label: '通行点二'}, {id: 'P-2'}]};
+  const a = {id: 'LAB-01', online: true, task: 'o1', status: 'EXECUTING', location: 'P-7~hold',
+    allocated: ['P-7~hold', 'R-7~spur', 'P-7'], claimed: ['R-7~spur:reverse', 'R-7:reverse', 'P-3']};
+  const b = {id: 'LAB-02', online: true, allocated: ['P-2']};
+  assert.equal(T.status(a, [a, b], [order], {model}).text, '执行中');
+  const after = {...a, location: 'P-7', allocated: ['P-7']};
+  const order2 = {...order, currentDriveOrderIndex: 1};
+  assert.equal(T.status(after, [after, b], [order2], {model, placeName: id => model.points.find(p => p.id === id)?.label || id}).text,
+    '等待 LAB-02 通过 通行点二 路口');
 });

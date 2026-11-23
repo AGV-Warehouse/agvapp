@@ -8,6 +8,9 @@
 (function (root) {
   "use strict";
   const EN = {
+    "通过": "to pass",
+    "路口": "crossing",
+    "，到后": ", then",
     "此浏览器或电脑不支持 3D 显示（WebGL 不可用），请使用 2D 视图。": "This browser or computer cannot show 3D (WebGL unavailable). Use the 2D view.",
     "正在加载 3D 视图…": "Loading the 3D view…",
     "3D 组件未能加载。请检查网络后重试，或使用 2D 视图。": "The 3D component did not load. Check the network and retry, or use the 2D view.",

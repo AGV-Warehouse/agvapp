@@ -93,11 +93,25 @@
     const work = robot.stationWork;
     const at = work ? resourceLabel(work.station, context) : '';
     if (work?.needsOperator) return {level: 'warn', text: `在 ${at} 等待操作员确认`, kind: 'operator'};
-    const block = robot.task ? blockingResource(robot, robots, context.model?.blocks) : null;
+    let block = robot.task ? blockingResource(robot, robots, context.model?.blocks) : null;
     if (block) {
-      const what = resourceLabel(block.resource, context);
-      return {level: 'warn', kind: 'traffic', ...block,
-        text: block.zone ? `等待 ${block.holder} 离开 ${what} 所在路口区域` : `等待 ${block.holder} 让出 ${what}`};
+      // A zone is named by the crossing point in the requested step.
+      const points = new Set((context.model?.points || []).map(p => p.id));
+      const members = (context.model?.blocks || []).find(z => z.id === block.zone)?.members || [];
+      const ahead = remainingRoute(robot, orders).map(step => step.to);
+      const crossing = !block.zone ? block.resource : [...nextClaim(robot), ...ahead].find(name => points.has(name) && members.includes(name)) ||
+        members.find(name => points.has(name) && !name.includes('~')) || block.resource;
+      const what = resourceLabel(crossing, context);
+      const wait = block.zone ? `等待 ${block.holder} 通过 ${what} 路口` : `等待 ${block.holder} 让出 ${what}`;
+      // Still driving on granted path toward the wait point: say so, no alarm.
+      const route = remainingRoute(robot, orders);
+      const stop = route.find(step => !(robot.allocated || []).includes(step.path));
+      // Every step to this stop is granted: the claim is for a later leg
+      // (after the station work), so there is nothing to wait for yet.
+      if (route.length && !stop) block = null;
+      else if (route.length && stop !== route[0]) {
+        return {level: 'info', kind: 'approach', ...block, text: `前往 ${resourceLabel(stop.from, context)}，到后${wait}`};
+      } else return {level: 'warn', kind: 'traffic', ...block, text: wait};
     }
     if (work?.atStation) return {level: 'info', text: work.kind === 'charge' ? `在 ${at} 充电` : `在 ${at} 作业`};
     if (robot.task && robot.status === 'EXECUTING') return {level: 'info', text: '执行中'};
