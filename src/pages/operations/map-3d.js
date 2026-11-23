@@ -256,8 +256,10 @@
       if (!view) return;
       const b = view.bounds;
       goal.target.set((b.minX + b.maxX) / 2, 0, -(b.minY + b.maxY) / 2);
-      const span = Math.max(b.maxX - b.minX, b.maxY - b.minY, 2) + 1.5;
-      goal.distance = span / (2 * Math.tan((camera.fov * Math.PI) / 360)) * (camera.aspect < 1 ? 1.3 / camera.aspect : 0.85);
+      // Fit both extents: depth shrinks with tilt, width with the aspect.
+      const half = Math.tan((camera.fov * Math.PI) / 360);
+      const wide = Math.max(b.maxX - b.minX, 2) + 1.5, deep = (Math.max(b.maxY - b.minY, 2) + 1.5) * Math.max(0.45, Math.cos(tilt));
+      goal.distance = Math.max(deep / (2 * half), wide / (2 * half * camera.aspect)) * 1.08;
       goal.azimuth = 0;
       goal.tilt = tilt;
       wake();
