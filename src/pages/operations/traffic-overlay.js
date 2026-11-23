@@ -66,6 +66,10 @@
   function resourceLabel(name, {model, placeName} = {}) {
     if (!name) return '';
     const place = id => (placeName ? placeName(id) : '') || id;
+    // A label the scene gave this exact resource wins (compiled wait points
+    // carry one, e.g. the scene name of the spot plus "wait point").
+    const own = (model?.points || []).find(p => p.id === name)?.label;
+    if (own) return own;
     const [base, suffix] = String(name).split('~');
     if (suffix === 'hold') return `${place(base)} 前等待点`;
     const path = (model?.paths || []).find(p => p.id === name);

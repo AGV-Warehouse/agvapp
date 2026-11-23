@@ -84,6 +84,7 @@ test('resource names read as places: wait points, lanes between places, labels',
   assert.equal(T.resourceLabel('R-3:reverse', {model, placeName}), '三号路口 → 四号工位 前等待点 路段');
   assert.equal(T.resourceLabel('R-9', {model, placeName}), '主通道');
   assert.equal(T.resourceLabel('X-1', {model, placeName}), 'X-1');
+  assert.equal(T.resourceLabel('P-1~hold', {model: {points: [{id: 'P-1~hold', label: '待料起点 路口前等待点'}]}, placeName}), '待料起点 路口前等待点');
 });
 
 test('a vehicle waiting for operator confirmation says so on the map', () => {

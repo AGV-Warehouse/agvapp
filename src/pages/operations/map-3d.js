@@ -208,7 +208,7 @@
       wheel.position.set(0, 0.05, side * 0.18);
       group.add(wheel);
     }
-    const label = textSprite(THREE, vehicle.id, {size: 0.16});
+    const label = textSprite(THREE, vehicle.id, {size: 0.2});
     label.position.set(0, 0.42, 0);
     group.add(label);
     group.userData.vehicleId = vehicle.id;
@@ -257,7 +257,7 @@
       const b = view.bounds;
       goal.target.set((b.minX + b.maxX) / 2, 0, -(b.minY + b.maxY) / 2);
       const span = Math.max(b.maxX - b.minX, b.maxY - b.minY, 2) + 1.5;
-      goal.distance = span / (2 * Math.tan((camera.fov * Math.PI) / 360)) * (camera.aspect < 1 ? 1.6 / camera.aspect : 1.1);
+      goal.distance = span / (2 * Math.tan((camera.fov * Math.PI) / 360)) * (camera.aspect < 1 ? 1.3 / camera.aspect : 0.85);
       goal.azimuth = 0;
       goal.tilt = tilt;
       wake();
@@ -272,10 +272,11 @@
       floor.rotation.x = -Math.PI / 2;
       floor.position.set((b.minX + b.maxX) / 2, 0, -(b.minY + b.maxY) / 2);
       layout.add(floor);
-      const cells = Math.max(1, Math.round(Math.max(width, depth)));
-      const grid = new THREE.GridHelper(cells, cells, 0xcfd7e2, 0xdde3eb);
-      grid.position.set(floor.position.x, 0.001, floor.position.z);
-      layout.add(grid);
+      // 1 m grid, clipped to the floor.
+      const x0 = b.minX - margin, x1 = b.maxX + margin, y0 = b.minY - margin, y1 = b.maxY + margin, grid = [];
+      for (let x = Math.ceil(x0); x <= x1; x += 1) grid.push(new THREE.Vector3(x, 0.001, -y0), new THREE.Vector3(x, 0.001, -y1));
+      for (let y = Math.ceil(y0); y <= y1; y += 1) grid.push(new THREE.Vector3(x0, 0.001, -y), new THREE.Vector3(x1, 0.001, -y));
+      layout.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(grid), new THREE.LineBasicMaterial({color: 0xd3dae4})));
       const laneMaterial = new THREE.MeshStandardMaterial({color: 0xa9b6c8, roughness: 0.9});
       for (const lane of view.lanes) layout.add(strip(THREE, lane, 0.1, LIFT.lane, laneMaterial));
       const pointMaterial = new THREE.MeshStandardMaterial({color: 0x8a9ab0});
@@ -290,7 +291,7 @@
         pad.position.set(station.x, 0.01, -station.y);
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), stationMaterial);
         post.position.set(station.x - 0.25, 0.25, -station.y - 0.25);
-        const label = textSprite(THREE, station.label, {size: 0.18, color: '#33435a'});
+        const label = textSprite(THREE, station.label, {size: 0.22, color: '#33435a'});
         label.position.set(station.x, 0.62, -station.y);
         layout.add(pad, post, label);
       }
@@ -344,9 +345,9 @@
           if (entry.note) { entry.group.remove(entry.note); disposeTree(entry.note); entry.note = null; }
           if (text) {
             const alert = vehicle.note.level === 'alert';
-            entry.note = textSprite(THREE, text, {size: 0.17, color: alert ? '#a11d1d' : '#7a4b00',
+            entry.note = textSprite(THREE, text, {size: 0.22, color: alert ? '#a11d1d' : '#7a4b00',
               background: alert ? 'rgba(253,236,236,0.96)' : 'rgba(255,247,230,0.96)', border: alert ? '#d64545' : '#e8a33d'});
-            entry.note.position.set(0, 0.7, 0);
+            entry.note.position.set(0, 0.75, 0);
             entry.group.add(entry.note);
           }
           entry.noteText = text;
