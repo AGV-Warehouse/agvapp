@@ -121,7 +121,7 @@ test("queued tasks follow the openTCS tasks with their place in line, and can be
   assert.deepEqual(result.active.map((r) => r.id), ["fleet-a", "queue-1"]);
   const row = result.active[1];
   assert.equal(row.state, "排队中");
-  assert.equal(row.detail, "排队第 1 位：目的站已被 LAB-03 占用，空出后自动派出");
+  assert.equal(row.detail, "排队第 1 位 · 等 LAB-03 离开该工位，之后自动派出");
   assert.equal(row.to, "待料缓冲位");
   assert.deepEqual(row.cancel, { orderId: "queue-1" });
   // A dispatched entry is the openTCS order now; a failed one stays visible.

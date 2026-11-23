@@ -123,7 +123,11 @@
       const label = QUEUE_STEP[s.action] || "";
       return placeName(s.station, context) + (label ? " " + label : "");
     }).join(" → ") || "—";
-    const why = String(entry.reason?.message || "").split("；")[0];
+    const message = String(entry.reason?.message || "");
+    const holder = message.match(/被 (\S+) 占用/)?.[1] || message.match(/^(\S+) 已有前往/)?.[1];
+    const why = entry.reason?.code === "DESTINATION_OCCUPIED" && holder ? `等 ${holder} 离开该工位`
+      : entry.reason?.code === "DESTINATION_RESERVED" && holder ? `等 ${holder} 先到该工位并离开`
+      : message.split("；")[0];
     const queued = entry.state === "QUEUED";
     const states = { QUEUED: ["排队中", "waiting"], FAILED: ["排队后派车失败", "alert"], CANCELLED: ["已撤销排队", "muted"], DISPATCHED: ["已派出", "online"] };
     const [label, tone] = states[entry.state] || [entry.state, "muted"];
@@ -137,7 +141,7 @@
       tone,
       active: queued,
       queued: true,
-      detail: queued ? `排队第 ${entry.position || "?"} 位${why ? "：" + why : ""}，空出后自动派出`
+      detail: queued ? `排队第 ${entry.position || "?"} 位${why ? " · " + why : ""}，之后自动派出`
         : entry.state === "FAILED" ? `${label}：${why}` : label,
       created: entry.createdAt || null,
       finished: queued ? null : entry.updatedAt || null,

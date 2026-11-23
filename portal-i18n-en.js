@@ -8,6 +8,10 @@
 (function (root) {
   "use strict";
   const EN = {
+    "等": "waiting for",
+    "离开该工位": "to leave the station",
+    "先到该工位并离开": "to reach and leave the station",
+    "，之后自动派出": ", then sent automatically",
     "排队后派车失败": "Dispatch after queueing failed",
     "已撤销排队": "Removed from queue",
     "已派出": "Dispatched",
