@@ -8,6 +8,14 @@
 (function (root) {
   "use strict";
   const EN = {
+    "此浏览器或电脑不支持 3D 显示（WebGL 不可用），请使用 2D 视图。": "This browser or computer cannot show 3D (WebGL unavailable). Use the 2D view.",
+    "正在加载 3D 视图…": "Loading the 3D view…",
+    "3D 组件未能加载。请检查网络后重试，或使用 2D 视图。": "The 3D component did not load. Check the network and retry, or use the 2D view.",
+    "3D 视角": "3D camera",
+    "斜视": "Angled",
+    "俯视": "Top-down",
+    "3D 只用于查看：拖动旋转 · 右键或 Shift+拖动平移 · 滚轮缩放 · 派车请切回 2D": "3D is view-only: drag to rotate · right-drag or Shift+drag to pan · scroll to zoom · switch to 2D to dispatch",
+    "地图视角": "Map view",
     "通道": "Lanes",
     "规划路线": "Planned route",
     "已占用": "Held",

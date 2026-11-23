@@ -39,6 +39,7 @@
   "src/pages/maps/scene-history-ui.js",
   "src/pages/maps/scene-library.js",
   "src/pages/missions/history-ui.js",
+  "src/pages/operations/map-3d.js",
   "src/pages/operations/rts-map.js",
   "src/pages/operations/traffic-overlay.js",
   "src/pages/simulation/environment-ui.js",
@@ -48,5 +49,7 @@
   "src/shell/operator-view.js",
   "styles.css",
   "sw.js",
+  "vendor/three-0.158.0.min.js",
+  "vendor/three-LICENSE.txt",
   "web-assets.json"
 ]

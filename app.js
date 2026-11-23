@@ -70,6 +70,9 @@ let toastTimer,
   fitCamera = { ...camera },
   mapSelection = [],
   rtsVehicles = [],
+  livePoses = [],
+  map3d = null,
+  map3dLoading = false,
   rtsIntents = new Map(),
   rtsSelectionBar = null,
   rtsMap = null;
@@ -740,12 +743,17 @@ function renderLiveVehicles() {
     const interaction = guest ? "" : ` data-object-kind="robots" data-object-id="${esc(id)}" tabindex="0" role="button" aria-label="车辆 ${esc(id)}"`;
     return `<g class="map-vehicle${guest ? "" : " map-item" + selected}"${interaction}><title>${esc([id, estimateText, truthText].filter(Boolean).join(" · "))}</title>${estimateMarker}${truthMarker}<text class="map-label" x="${x - 10 * unit}" y="${y + 22 * unit}" font-size="${10 * unit}">${esc(id)}</text></g>`;
   }).join("");
+  livePoses = vehicles.map(({ id, estimate, truth }) => {
+    const pose = estimate || truth || {};
+    return { id, x: pose.x, y: pose.y, yaw: pose.yaw };
+  });
   rtsVehicles = vehicles.map(({ id, estimate, truth }) => {
     const [x, y] = pointXY(estimate || truth || {});
     return { id, x, y };
   }).filter((v) => Number.isFinite(v.x) && Number.isFinite(v.y));
   renderSelectionBar();
   renderTraffic(unit, guest);
+  renderMap3d();
   renderIntents(unit);
   rtsMap?.renderMinimap();
   const layer = $("robotMarkers");
@@ -1367,12 +1375,72 @@ $("refreshModel").addEventListener("click", () => loadModel(true));
 function zoom(factor) {
   rtsMap?.zoomBy(factor);
 }
-$("zoomIn").addEventListener("click", () => zoom(0.8));
-$("zoomOut").addEventListener("click", () => zoom(1.25));
+$("zoomIn").addEventListener("click", () => (map3d ? map3d.zoom(0.8) : zoom(0.8)));
+$("zoomOut").addEventListener("click", () => (map3d ? map3d.zoom(1.25) : zoom(1.25)));
 $("fitMap").addEventListener("click", () => {
+  if (map3d) return map3d.fit();
   fitMap();
   renderMap();
 });
+// 2D/3D view switch. 3D loads three.js on first use and only shows: the
+// same model, poses, routes, held resources and waiting reasons as 2D.
+// Dispatching stays in 2D.
+const MAP_VIEW_KEY = "agv.portal.mapView";
+function storedMapView() {
+  try { return localStorage.getItem(MAP_VIEW_KEY) === "3d" ? "3d" : "2d"; } catch { return "2d"; }
+}
+let map3dNote = null;
+function map3dMessage(text) {
+  map3dNote?.remove();
+  map3dNote = null;
+  if (!text) return;
+  map3dNote = document.createElement("p");
+  map3dNote.className = "map-3d-message";
+  map3dNote.textContent = text;
+  $("map3d").append(map3dNote);
+}
+function setMapView(next, remember = true) {
+  if (remember) try { localStorage.setItem(MAP_VIEW_KEY, next); } catch { /* per-viewer preference only */ }
+  const is3d = next === "3d";
+  $("mapView2d").setAttribute("aria-pressed", String(!is3d));
+  $("mapView3d").setAttribute("aria-pressed", String(is3d));
+  $("warehouseMap").classList.toggle("view-3d", is3d);
+  $("map3d").hidden = !is3d;
+  if (!is3d) {
+    map3d?.dispose();
+    map3d = null;
+    map3dMessage("");
+    return;
+  }
+  if (map3d || map3dLoading) return;
+  if (!window.Map3D?.webglAvailable()) return map3dMessage("此浏览器或电脑不支持 3D 显示（WebGL 不可用），请使用 2D 视图。");
+  map3dLoading = true;
+  map3dMessage("正在加载 3D 视图…");
+  window.Map3D.loadThree().then(() => {
+    map3dLoading = false;
+    map3dMessage("");
+    if ($("map3d").hidden) return;
+    map3d = window.Map3D.mount($("map3d"), { onSelect: (id) => setMapSelection(id ? [id] : []) });
+    renderMap3d();
+  }).catch(() => {
+    map3dLoading = false;
+    map3dMessage("3D 组件未能加载。请检查网络后重试，或使用 2D 视图。");
+  });
+}
+function renderMap3d() {
+  if (!map3d) return;
+  const live = !guestOverview() && connected();
+  map3d.update(window.Map3D.describe({
+    model: overviewMapModel(), robots: live ? robots : [], orders: live ? orders : [], poses: livePoses,
+    traffic: window.TrafficOverlay, context: trafficContext(),
+  }));
+  map3d.setSelection(mapSelection);
+}
+$("mapView2d").addEventListener("click", () => setMapView("2d"));
+$("mapView3d").addEventListener("click", () => setMapView("3d"));
+$("map3dTop").addEventListener("click", () => map3d?.top());
+$("map3dOblique").addEventListener("click", () => map3d?.oblique());
+setMapView(storedMapView(), false);
 for (const checkbox of document.querySelectorAll("[data-layer]"))
   checkbox.addEventListener("change", () => {
     $("mapSvg").dataset[checkbox.dataset.layer] = String(checkbox.checked);

@@ -379,6 +379,17 @@
                   ><span id="setupVehicles"><i></i>车辆</span>
                 </div>
               </div>
+              <div id="map3d" class="map-3d" hidden>
+                <div class="map-3d-tools" role="group" aria-label="3D 视角">
+                  <button id="map3dOblique" class="button">斜视</button
+                  ><button id="map3dTop" class="button">俯视</button>
+                </div>
+                <p id="map3dHint" class="map-3d-hint">3D 只用于查看：拖动旋转 · 右键或 Shift+拖动平移 · 滚轮缩放 · 派车请切回 2D</p>
+              </div>
+              <div class="map-view-toggle" role="group" aria-label="地图视角">
+                <button id="mapView2d" aria-pressed="true">2D</button
+                ><button id="mapView3d" aria-pressed="false">3D</button>
+              </div>
               <div class="map-compass" aria-label="Positive Y points upwards">
                 <svg viewBox="0 0 30 38" aria-hidden="true">
                   <path d="m15 9 6 20-6-4-6 4Z" /></svg
@@ -743,6 +754,7 @@
     <script src="live-vehicle-poses.js"></script>
     <script src="src/pages/operations/rts-map.js"></script>
     <script src="src/pages/operations/traffic-overlay.js"></script>
+    <script src="src/pages/operations/map-3d.js"></script>
     <script src="src/shell/home-panels.js"></script>
     <script src="app.js"></script>
   </body>
