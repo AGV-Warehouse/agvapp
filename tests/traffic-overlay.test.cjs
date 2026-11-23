@@ -55,3 +55,51 @@ test('live case: the held point inside a requested set is found (LAB-03 waits fo
   const lab03 = {id: 'LAB-03', online: true, task: 'b', status: 'EXECUTING', allocated: ['R-3', 'S-3', 'P-4'], claimed: ['R-3:reverse', 'P-3', 'R-2:reverse', 'P-2']};
   assert.equal(T.status(lab03, [lab01, lab03], []).text, '等待 LAB-01 让出 P-3');
 });
+
+test('only the next ungranted step can hold a vehicle up, not a resource far ahead', () => {
+  const a = {id: 'LAB-01', online: true, task: 'o1', status: 'EXECUTING', allocated: ['P-1'], claimed: ['R-1', 'P-2', 'R-2', 'P-3']};
+  const b = {id: 'LAB-02', online: true, allocated: ['P-3']};
+  assert.deepEqual(T.nextClaim(a), ['R-1', 'P-2']);
+  assert.equal(T.blockingResource(a, [a, b]), null);
+  assert.equal(T.status(a, [a, b], []).text, '执行中');
+});
+
+test('a held member of a single-vehicle zone blocks the other members of that zone', () => {
+  const blocks = [{id: 'ZONE-1', type: 'SINGLE_VEHICLE_ONLY', members: ['P-2', 'P-3', 'R-2']},
+    {id: 'SAME', type: 'SAME_DIRECTION_ONLY', members: ['P-5', 'P-6']}];
+  const a = {id: 'LAB-01', online: true, task: 'o1', status: 'EXECUTING', allocated: ['P-1'], claimed: ['R-1', 'P-2']};
+  const b = {id: 'LAB-02', online: true, allocated: ['P-3']};
+  assert.deepEqual(T.blockingResource(a, [a, b], blocks), {resource: 'P-2', holder: 'LAB-02', zone: 'ZONE-1'});
+  const model = {blocks, points: [{id: 'P-2', label: '二号路口'}]};
+  assert.equal(T.status(a, [a, b], [], {model, placeName: id => model.points.find(p => p.id === id)?.label}).text,
+    '等待 LAB-02 离开 二号路口 所在路口区域');
+  const c = {id: 'LAB-03', online: true, task: 'o3', status: 'EXECUTING', allocated: [], claimed: ['P-5']};
+  assert.equal(T.blockingResource(c, [c, {id: 'LAB-04', allocated: ['P-6']}], blocks), null);
+});
+
+test('resource names read as places: wait points, lanes between places, labels', () => {
+  const model = {paths: [{id: 'R-3:reverse', source: 'P-3', target: 'P-4~hold'}, {id: 'R-9', label: '主通道', source: 'A', target: 'B'}]};
+  const placeName = id => ({'P-3': '三号路口', 'P-4': '四号工位'})[id];
+  assert.equal(T.resourceLabel('P-4~hold', {model, placeName}), '四号工位 前等待点');
+  assert.equal(T.resourceLabel('R-3:reverse', {model, placeName}), '三号路口 → 四号工位 前等待点 路段');
+  assert.equal(T.resourceLabel('R-9', {model, placeName}), '主通道');
+  assert.equal(T.resourceLabel('X-1', {model, placeName}), 'X-1');
+});
+
+test('a vehicle waiting for operator confirmation says so on the map', () => {
+  const robot = {id: 'LAB-01', online: true, task: 'o1', status: 'EXECUTING', stationWork: {station: 'S-2', kind: 'pick', needsOperator: true, atStation: true}};
+  const s = T.status(robot, [robot], [], {placeName: id => (id === 'S-2' ? '取料口' : id)});
+  assert.equal(s.text, '在 取料口 等待操作员确认');
+  assert.equal(s.level, 'warn');
+  assert.equal(T.status({...robot, stationWork: {station: 'S-5', kind: 'charge', atStation: true}}, [robot], []).text, '在 S-5 充电');
+});
+
+test('render outlines the requested next step apart from held resources', () => {
+  const points = new Map([['P-1', [0, 0]], ['P-2', [60, 0]]]);
+  const paths = new Map([['R-1', [[0, 0], [60, 0]]]]);
+  const a = {id: 'LAB-01', online: true, task: 'o1', status: 'EXECUTING', allocated: ['P-1'], claimed: ['R-1', 'P-2']};
+  const svg = T.render({robots: [a], orders: [], geometry: {points, paths}});
+  assert.match(svg, /class="traffic-held"[^>]*><title>LAB-01 占用 P-1/);
+  assert.equal((svg.match(/traffic-claimed/g) || []).length, 2);
+  assert.match(svg, /已申请、尚未获准 R-1/);
+});

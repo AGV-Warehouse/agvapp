@@ -174,16 +174,17 @@ function log(message, error = false) {
 const OV = window.OperatorView;
 // Live context for operator wording: place names and who is waiting for whom.
 function operatorContext() {
-  const waiting = OV.waitingReasons(robots, window.TrafficOverlay?.blockingResource);
-  for (const [id, text] of Object.entries(waiting)) {
+  const overlay = window.TrafficOverlay;
+  const blocking = overlay && ((robot, all) => overlay.blockingResource(robot, all, model?.blocks));
+  const waiting = OV.waitingReasons(robots, blocking);
+  for (const id of Object.keys(waiting)) {
     const robot = robots.find((r) => r.id === id);
-    const block = window.TrafficOverlay?.blockingResource(robot, robots);
-    if (block) waiting[id] = `等待 ${block.holder} 让出 ${OV.placeName(block.resource, { layout, model })}`;
-    else waiting[id] = text;
+    waiting[id] = overlay.status(robot, robots, orders, trafficContext())?.text || waiting[id];
   }
   return { connected: connected(), orders, robots, layout, model, waiting };
 }
 function placeName(id) { return OV.placeName(id, { layout, model }); }
+function trafficContext() { return { model, placeName }; }
 // The gateway supports station tasks and alerts when it lists their commands.
 function supports(command) { return (connectionCapabilities || api.capabilities)?.commands?.includes(command) === true; }
 function canOperate() { return Boolean(api.authorized && receiptSnapshot.canWrite); }
@@ -1417,8 +1418,8 @@ function renderTraffic(unit, guest) {
     .map((p) => [p.id, [points.get(p.source), points.get(p.target)]]));
   const positions = new Map(rtsVehicles.map((v) => [v.id, [v.x, v.y]]));
   setIfChanged($("trafficOverlay"), "innerHTML",
-    overlay.render({ robots, orders, geometry: { points, paths }, positions, unit, selected: mapSelection }));
-  const alerts = overlay.alerts(robots, orders);
+    overlay.render({ robots, orders, geometry: { points, paths }, positions, unit, selected: mapSelection, context: trafficContext() }));
+  const alerts = overlay.alerts(robots, orders, trafficContext());
   setIfChanged($("trafficAlerts"), "textContent", alerts.map((a) => `${a.id}：${a.text}`).join(" · "));
   $("trafficAlerts").hidden = !alerts.length;
   $("trafficAlerts").dataset.level = alerts.some((a) => a.level === "alert") ? "alert" : "warn";

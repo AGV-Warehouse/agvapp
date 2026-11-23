@@ -2543,6 +2543,11 @@ rect.traffic-held{stroke:none}
 .traffic-note.alert rect{fill:#fdecec;stroke:#d64545}
 .traffic-note.alert text{fill:#a11d1d}
 .traffic-wait-link{fill:none;stroke:#e8a33d}
+.traffic-claimed{fill:none;stroke-linecap:round}
+.map-legend .legend-route{width:12px;height:3px;border-radius:2px;background:#2f6fe4}
+.map-legend .legend-held{width:12px;height:6px;border-radius:3px;background:rgba(47,111,228,.35)}
+.map-legend .legend-claimed{width:10px;height:6px;border-radius:1px;background:none;border:1px dashed #2f6fe4}
+.map-legend .legend-wait{width:12px;height:7px;border-radius:2px;background:#fff7e6;border:1px solid #e8a33d}
 .traffic-alerts{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 420px);padding:7px 12px;border-radius:7px;background:#fff7e6;border:1px solid #e8a33d;color:#7a4b00;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 .traffic-alerts[data-level="alert"]{background:#fdecec;border-color:#d64545;color:#a11d1d}
 @media(max-width:700px){.traffic-alerts{max-width:calc(100% - 24px);bottom:64px}}

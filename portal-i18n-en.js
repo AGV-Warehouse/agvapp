@@ -8,6 +8,19 @@
 (function (root) {
   "use strict";
   const EN = {
+    "通道": "Lanes",
+    "规划路线": "Planned route",
+    "已占用": "Held",
+    "已申请、待放行": "Requested, not yet granted",
+    "等待原因": "Why waiting",
+    "前等待点": " wait point",
+    "路段": "lane",
+    "等待操作员确认": "waiting for operator confirmation",
+    "离开": "to leave",
+    "所在路口区域": "crossing zone",
+    "规划路线：剩余": "planned route:",
+    "段，终点": "segments left, ending at",
+    "已申请、尚未获准": "requested, not yet granted",
     "%（默认）": "% (default)",
     "+ 新建草稿": "+ New draft",
     "0 个对象": "0 objects",
