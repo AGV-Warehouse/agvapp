@@ -106,3 +106,30 @@ test("gateway alerts replace derived offline/failed items and can be acknowledge
   assert.doesNotMatch(HomePanels.attentionMarkup(items, { canOperate: true }), /data-ack-alert="LOW_BATTERY/);
   assert.equal(OV.batterySourceText({ batterySource: "SIMULATION_MODEL" }), "仿真模型估算");
 });
+
+test("queued tasks follow the openTCS tasks with their place in line, and can be removed", () => {
+  const queue = {
+    queued: [{ id: "queue-1", state: "QUEUED", position: 1, robotId: "LAB-02", createdAt: "2026-11-23T03:00:00Z",
+      steps: [{ station: "S-1", action: "move" }], reason: { code: "DESTINATION_OCCUPIED", message: "目的站已被 LAB-03 占用；请先把它派往别处或选择空闲站点" } }],
+    recent: [
+      { id: "queue-2", state: "DISPATCHED", orderId: "fleet-x", steps: [{ station: "S-1", action: "move" }], updatedAt: "2026-11-23T02:59:00Z" },
+      { id: "queue-3", state: "FAILED", robotId: "LAB-01", steps: [{ station: "S-1", action: "pick" }], updatedAt: "2026-11-23T02:58:00Z",
+        reason: { message: "Vehicle is not registered" } },
+    ],
+  };
+  const result = OV.taskQueue([order("fleet-a", "BEING_PROCESSED", { processingVehicle: "LAB-01" })], { layout, model }, { queue });
+  assert.deepEqual(result.active.map((r) => r.id), ["fleet-a", "queue-1"]);
+  const row = result.active[1];
+  assert.equal(row.state, "排队中");
+  assert.equal(row.detail, "排队第 1 位：目的站已被 LAB-03 占用，空出后自动派出");
+  assert.equal(row.to, "待料缓冲位");
+  assert.deepEqual(row.cancel, { orderId: "queue-1" });
+  // A dispatched entry is the openTCS order now; a failed one stays visible.
+  assert.deepEqual(result.recent.map((r) => r.id), ["queue-3"]);
+  assert.equal(result.recent[0].detail, "排队后派车失败：Vehicle is not registered");
+  assert.equal(result.recent[0].to, "待料缓冲位 取货");
+  const markup = HomePanels.taskMarkup(row, () => "", { canOperate: true });
+  assert.match(markup, /data-cancel-queue="queue-1"/);
+  assert.match(HomePanels.taskMarkup(row, () => "", { canOperate: false }), /disabled/);
+  assert.deepEqual(OV.taskQueue([], {}, {}).active, []);
+});

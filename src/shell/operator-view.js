@@ -116,12 +116,46 @@
     };
   }
 
-  /** Active tasks first (oldest first, like a queue), then the latest finished ones. */
-  function taskQueue(orders, context = {}, { recent = 5 } = {}) {
+  const QUEUE_STEP = { move: "", pick: "取货", drop: "送货", wait: "等待确认", charge: "充电" };
+  /** One gateway queue entry (a task waiting for a busy station) as a task row. */
+  function queueSummary(entry, context = {}) {
+    const to = (entry.steps || []).map((s) => {
+      const label = QUEUE_STEP[s.action] || "";
+      return placeName(s.station, context) + (label ? " " + label : "");
+    }).join(" → ") || "—";
+    const why = String(entry.reason?.message || "").split("；")[0];
+    const queued = entry.state === "QUEUED";
+    const states = { QUEUED: ["排队中", "waiting"], FAILED: ["排队后派车失败", "alert"], CANCELLED: ["已撤销排队", "muted"], DISPATCHED: ["已派出", "online"] };
+    const [label, tone] = states[entry.state] || [entry.state, "muted"];
+    return {
+      id: entry.id,
+      vehicle: entry.robotId || "待分配",
+      to,
+      confirm: null,
+      cancel: queued ? { orderId: entry.id } : null,
+      state: label,
+      tone,
+      active: queued,
+      queued: true,
+      detail: queued ? `排队第 ${entry.position || "?"} 位${why ? "：" + why : ""}，空出后自动派出`
+        : entry.state === "FAILED" ? `${label}：${why}` : label,
+      created: entry.createdAt || null,
+      finished: queued ? null : entry.updatedAt || null,
+    };
+  }
+
+  /** Active tasks first (oldest first, like a queue), then the latest finished ones.
+   *  `queue` is the gateway order queue ({queued, recent}); a dispatched entry
+   *  is already an openTCS order, so only queued/failed/cancelled ones show. */
+  function taskQueue(orders, context = {}, { recent = 5, queue = null } = {}) {
     const rows = (orders || []).map((o) => orderSummary(o, context));
+    const waiting = [...(queue?.queued || []), ...(queue?.recent || []).filter((e) => e.state !== "DISPATCHED")]
+      .map((e) => queueSummary(e, context));
     const time = (row) => Date.parse(row.created || "") || 0;
-    const active = rows.filter((r) => r.active).sort((a, b) => time(a) - time(b));
-    const done = rows.filter((r) => !r.active).sort((a, b) => (Date.parse(b.finished || b.created || "") || 0) - (Date.parse(a.finished || a.created || "") || 0));
+    const active = rows.filter((r) => r.active).sort((a, b) => time(a) - time(b))
+      .concat(waiting.filter((r) => r.active).sort((a, b) => time(a) - time(b)));
+    const done = rows.filter((r) => !r.active).concat(waiting.filter((r) => !r.active))
+      .sort((a, b) => (Date.parse(b.finished || b.created || "") || 0) - (Date.parse(a.finished || a.created || "") || 0));
     return { active, recent: done.slice(0, recent) };
   }
 
@@ -242,7 +276,7 @@
 
   const api = {
     ENGINEERING_KEY, ENGINEERING_ROUTES, placeName, orderDestinations, orderState, orderSummary,
-    taskQueue, vehicleStatus, batteryText, batterySourceText, exceptions, waitingReasons,
+    taskQueue, queueSummary, vehicleStatus, batteryText, batterySourceText, exceptions, waitingReasons,
     taskSteps, stepText, stationWorkText, STEP_LABELS, formatTime, engineeringEnabled, setEngineering,
   };
   root.OperatorView = api;

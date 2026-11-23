@@ -390,16 +390,18 @@
       }, 1000);
       return layout;
     }
+    // whenBusy "queue": if the station is taken, the gateway queues the order
+    // and sends it once the station is free (result.queued, result.position).
     order(value) {
-      return this.command(
-        { type: "create_order", robotId: value.robotId, destination: value.to },
-        value.requestId,
-      );
+      const command = { type: "create_order", robotId: value.robotId, destination: value.to };
+      if (value.whenBusy) command.whenBusy = value.whenBusy;
+      return this.command(command, value.requestId);
     }
     // A task of 1..8 station steps; without robotId openTCS picks a free vehicle.
     transport(value) {
       const command = { type: "create_transport_order", steps: value.steps.map(s => ({ station: s.station, action: s.action })) };
       if (value.robotId) command.robotId = value.robotId;
+      if (value.whenBusy) command.whenBusy = value.whenBusy;
       return this.command(command, value.requestId);
     }
     confirmStation(robotId) { return this.command({ type: "confirm_station_action", robotId }); }

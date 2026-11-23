@@ -31,7 +31,9 @@
     return `<li class="task-row tone-${esc(row.tone)}" title="${esc(row.id)}">` +
       `<span class="task-vehicle">${esc(row.vehicle)}</span>` +
       `<span class="task-main"><strong>${esc(row.to)}</strong><small>${esc(row.detail)}</small></span>` +
-      (row.confirm ? confirmButton(row.confirm, canOperate) : `<time>${esc(time)}</time>`) +
+      (row.confirm ? confirmButton(row.confirm, canOperate)
+        : row.cancel ? `<button type="button" class="button button-quiet button-small" data-cancel-queue="${esc(row.cancel.orderId)}"${canOperate ? "" : disabledAttr("登录后可操作")}>撤销排队</button>`
+        : `<time>${esc(time)}</time>`) +
       `<details class="task-raw eng-only"><summary>详情</summary><code>${esc(row.id)}</code></details></li>`;
   }
 

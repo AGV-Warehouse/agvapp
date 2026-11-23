@@ -8,6 +8,16 @@
 (function (root) {
   "use strict";
   const EN = {
+    "排队后派车失败": "Dispatch after queueing failed",
+    "已撤销排队": "Removed from queue",
+    "已派出": "Dispatched",
+    "排队第": "Queue position",
+    "位": "",
+    "，空出后自动派出": ", sent automatically when free",
+    "撤销排队": "Remove from queue",
+    "已撤销排队，这个任务不会再派出。": "Removed from the queue; this task will not be sent.",
+    "目的工位现在被占用，已排队（第": "The destination is taken; queued (position",
+    "位），空出后自动派出。": "), sent automatically when it is free.",
     "通过": "to pass",
     "路口": "crossing",
     "，到后": ", then",

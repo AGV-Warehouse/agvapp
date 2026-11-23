@@ -17,6 +17,8 @@ const html = (id, value) => {
 };
 // Server-side alerts (gateway alert stream); empty until the gateway provides them.
 let serverAlerts = [];
+// Gateway order queue: tasks waiting for a busy station ({queued, recent}).
+let orderQueue = { queued: [], recent: [] };
 let robots = [],
   orders = [],
   layout = null,
@@ -806,7 +808,7 @@ function renderHome(engineeringItems) {
   if (api.authorized && receiptSnapshot.writeBlockedReason) items.push({ level: "warn", text: "只能查看：" + receiptSnapshot.writeBlockedReason, route: "events" });
   if (OV.engineeringEnabled())
     items = items.concat(engineeringItems.map((i) => ({ level: i.kind === "error" ? "alert" : "warn", text: "［工程］" + i.text, route: i.route })));
-  window.HomePanels?.render({ items, queue: OV.taskQueue(orders, context), formatTime: (t) => OV.formatTime(t), canOperate: canOperate() });
+  window.HomePanels?.render({ items, queue: OV.taskQueue(orders, context, { queue: orderQueue }), formatTime: (t) => OV.formatTime(t), canOperate: canOperate() });
   $("alertsCount").textContent = stateReceived ? items.filter((i) => !i.acknowledged).length : "—";
 }
 function renderPortal() {
@@ -870,6 +872,7 @@ const api = new FleetAPI(
     robots = state.robots || [];
     orders = state.orders || [];
     if (Array.isArray(state.alerts)) serverAlerts = state.alerts;
+    if (state.queue && Array.isArray(state.queue.queued)) orderQueue = state.queue;
     upstreamOnline = Boolean(state.upstreamOnline);
     upstreamAgeSeconds = Number.isFinite(state.upstreamAgeSeconds) ? state.upstreamAgeSeconds : null;
     lastStateAt = Date.now();
@@ -1302,7 +1305,12 @@ $("taskKind").addEventListener("change", renderControls);
 document.addEventListener("click", (event) => {
   const confirm = event.target.closest?.("[data-confirm-robot]");
   const ack = event.target.closest?.("[data-ack-alert]");
-  if (confirm && !confirm.disabled) action(async () => {
+  const unqueue = event.target.closest?.("[data-cancel-queue]");
+  if (unqueue && !unqueue.disabled) action(async () => {
+    await api.cancel(unqueue.dataset.cancelQueue);
+    notify("已撤销排队，这个任务不会再派出。");
+  });
+  else if (confirm && !confirm.disabled) action(async () => {
     await api.confirmStation(confirm.dataset.confirmRobot);
     notify(`${confirm.dataset.confirmRobot} 已确认，继续执行任务。`);
   });
@@ -1324,10 +1332,14 @@ async function submitOrder(to, { kind = "move", pickup = "" } = {}) {
     if (content.robotId && [destination.id, destination.destination].includes(currentRobot()?.location))
       throw new Error("车辆已在这个工位，请选择其他工位。");
   }
+  // A taken station does not refuse the dispatch: the gateway queues it and
+  // sends it when the station is free (the task list shows the place in line).
+  const queuedNote = (result) => result?.queued
+    ? `目的工位现在被占用，已排队（第 ${result.position || "?"} 位），空出后自动派出。` : "";
   if (!stations) {
-    const result = await api.order({ ...content, requestId: api.id() });
-    log(`Order ${result.id} accepted.`);
-    notify("已派车。");
+    const result = await api.order({ ...content, whenBusy: "queue", requestId: api.id() });
+    log(`Order ${result.id} ${result.queued ? "queued" : "accepted"}.`);
+    notify(queuedNote(result) || "已派车。");
     return result;
   }
   const station = (id) => destinations().find((p) => p.id === id)?.destination || id;
@@ -1335,9 +1347,9 @@ async function submitOrder(to, { kind = "move", pickup = "" } = {}) {
     ? [{ station: station(pickup), action: "pick" }, { station: station(to), action: "drop" }]
     : [{ station: station(to), action: kind === "wait" ? "wait" : kind === "charge" ? "charge" : "move" }];
   if (kind === "pickdrop" && (!pickup || pickup === to)) throw new Error("请选择不同的取货工位和送货工位。");
-  const result = await api.transport({ robotId: content.robotId || undefined, steps, requestId: api.id() });
-  log(`Task ${result?.id || ""} accepted.`);
-  notify(kind === "pickdrop" ? "已派车取货。车辆到取货工位后请装货并点“取货完成”。" : "已派车。");
+  const result = await api.transport({ robotId: content.robotId || undefined, steps, whenBusy: "queue", requestId: api.id() });
+  log(`Task ${result?.id || ""} ${result?.queued ? "queued" : "accepted"}.`);
+  notify(queuedNote(result) || (kind === "pickdrop" ? "已派车取货。车辆到取货工位后请装货并点“取货完成”。" : "已派车。"));
   return result;
 }
 for (const [id, operation] of [
